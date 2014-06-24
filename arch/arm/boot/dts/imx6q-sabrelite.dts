@@ -63,6 +63,31 @@
 		mux-int-port = <1>;
 		mux-ext-port = <4>;
 	};
+
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB24";
+		mode_str ="LDB-1280x480";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+};
+
+&ldb {
+	ipu_id = <1>;
+	disp_id = <0>;
+	ext_ref = <1>;
+	mode = "sep0";
+	sec_ipu_id = <1>;
+	sec_disp_id = <1>;
+	status = "okay";
 };
 
 &audmux {

@@ -286,6 +286,7 @@ config MFD_88PM860X
 
 config MFD_MAX17135
     tristate "Maxim MAX17135 EPD PMIC core"
+	select MFD_CORE
 	depends on I2C
     help
       This is the MAX17135 PMIC support. It includes
