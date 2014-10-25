@@ -14,17 +14,40 @@
 / {
 	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
 	compatible = "fsl,imx6dl-wisehmi", "fsl,imx6dl";
+
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB24";
+		mode_str ="LDB-1280x480";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
 };
 
 &ldb {
-	ipu_id = <0>;
-	sec_ipu_id = <0>;
+	status = "okay";
 };
 
 &mxcfb1 {
 	status = "okay";
 };
 
-&mxcfb2 {
+&uart4 {
 	status = "okay";
 };
+
+&usdhc2 {
+	status = "okay";
+};
+
+&ecspi2 {
+	status = "okay";
+};
+
