@@ -31,7 +31,15 @@
 	};
 };
 
+&fec {
+	status = "okay";
+};
+
 &ldb {
+	status = "okay";
+};
+
+&gpmi {
 	status = "okay";
 };
 

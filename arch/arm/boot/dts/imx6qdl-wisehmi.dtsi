@@ -21,7 +21,6 @@
 	pinctrl-0 = <&pinctrl_enet_4>;
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio2 31 0>;
-	phy-reset-duration = 1;
 };
 
 &gpc {
@@ -35,9 +34,14 @@
 	ipu_id = <0>;
 	disp_id = <0>;
 	ext_ref = <1>;
-	mode = "sep0";
+	mode = "sin0";
 	sec_ipu_id = <0>;
 	sec_disp_id = <1>;
+};
+
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi_nand_2>;
 };
 
 &uart4 {
@@ -51,7 +55,8 @@
 };
 
 &ecspi2 {
-	fsl,spi-num-chipselects = <4>;
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio5 29 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2_1>;
 

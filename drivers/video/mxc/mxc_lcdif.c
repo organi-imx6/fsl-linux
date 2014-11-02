@@ -48,6 +48,12 @@ static struct fb_videomode lcdif_modedb[] = {
 	FB_SYNC_CLK_LAT_FALL,
 	FB_VMODE_NONINTERLACED,
 	0,},
+	{
+	/* 800x256 @ 60 Hz , pixel clk @ 20MHz */
+	"TX26D25VM2BAA", 60, 800, 256, 50000, 80, 160, 20, 30, 16, 10,
+	FB_SYNC_CLK_LAT_FALL,
+	FB_VMODE_NONINTERLACED,
+	0,},
 };
 static int lcdif_modedb_sz = ARRAY_SIZE(lcdif_modedb);
 
