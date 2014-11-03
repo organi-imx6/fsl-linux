@@ -167,6 +167,14 @@ static struct fb_videomode ldb_modedb[] = {
 	 0,
 	 FB_VMODE_NONINTERLACED,
 	 FB_MODE_IS_DETAILED,},
+	{
+	 "LDB-800x480-TX18D45VM2BAA", 60, 800, 480, 30940,
+	 100, 100,
+	 10, 10,
+	 36, 20,
+	 0,
+	 FB_VMODE_NONINTERLACED,
+	 FB_MODE_IS_DETAILED,},
 };
 static int ldb_modedb_sz = ARRAY_SIZE(ldb_modedb);
 

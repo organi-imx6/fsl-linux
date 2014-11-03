@@ -15,6 +15,10 @@
 	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
 	compatible = "fsl,imx6dl-wisehmi", "fsl,imx6dl";
 
+	chosen {
+        bootargs = "root=/dev/mmcblk0p2 rootwait rw console=ttymxc3,115200n8 mtdparts=gpmi-nand:128k(spl),768k(uboot),384k(env),384k(dtb),7680k(kernel),-(rootfs)";
+    };
+
 	aliases {
 		mxcfb0 = &mxcfb1;
 	};
@@ -23,7 +27,7 @@
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "ldb";
 		interface_pix_fmt = "RGB24";
-		mode_str ="LDB-1280x480";
+		mode_str ="LDB-800x480-TX18D45VM2BAA";
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
