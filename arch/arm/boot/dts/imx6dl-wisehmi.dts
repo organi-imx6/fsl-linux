@@ -16,7 +16,7 @@
 	compatible = "fsl,imx6dl-wisehmi", "fsl,imx6dl";
 
 	chosen {
-        bootargs = "root=/dev/mmcblk0p2 rootwait rw console=ttymxc3,115200n8 mtdparts=gpmi-nand:128k(spl),768k(uboot),384k(env),384k(dtb),7680k(kernel),-(rootfs)";
+        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 mtdparts=gpmi-nand:128k(spl),768k(uboot),384k(env),384k(dtb),7680k(kernel),-(rootfs) lpj=7905280";
     };
 
 	aliases {
