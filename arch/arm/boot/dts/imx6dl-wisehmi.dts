@@ -16,7 +16,7 @@
 	compatible = "fsl,imx6dl-wisehmi", "fsl,imx6dl";
 
 	chosen {
-        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 mtdparts=gpmi-nand:128k(spl),768k(uboot),384k(env),384k(dtb),7680k(kernel),-(rootfs) lpj=7905280";
+        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280";
     };
 
 	aliases {
@@ -27,7 +27,7 @@
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "ldb";
 		interface_pix_fmt = "RGB24";
-		mode_str ="LDB-800x480-TX18D45VM2BAA";
+		mode_str ="LDB-1280x480";
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
@@ -44,10 +44,6 @@
 };
 
 &gpmi {
-	status = "okay";
-};
-
-&mxcfb1 {
 	status = "okay";
 };
 

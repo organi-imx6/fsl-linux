@@ -34,14 +34,40 @@
 	ipu_id = <0>;
 	disp_id = <0>;
 	ext_ref = <1>;
-	mode = "sin0";
+	mode = "sin1";
 	sec_ipu_id = <0>;
 	sec_disp_id = <1>;
 };
 
 &gpmi {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_gpmi_nand_2>;
+	pinctrl-0 = <&pinctrl_gpmi_nand_2>;	
+	nand-on-flash-bbt;
+
+	partition@0 {
+		label = "spl";
+		reg = <0x0 0x20000>;
+	};
+	partition@20000 {
+		label = "uboot";
+		reg = <0x20000 0xC0000>;
+	};
+	partition@E0000 {
+		label = "env";
+		reg = <0xE0000 0x60000>;
+	};
+	partition@140000 {
+		label = "dtb";
+		reg = <0x140000 0x60000>;
+	};
+	partition@1A0000 {
+		label = "kernel";
+		reg = <0x1A0000 0x780000>;
+	};
+	partition@920000 {
+		label = "rootfs";
+		reg = <0x920000 0x0>;
+	};
 };
 
 &uart4 {
