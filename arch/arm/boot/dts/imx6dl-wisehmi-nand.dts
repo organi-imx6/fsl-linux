@@ -1,0 +1,61 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-wisehmi.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
+	compatible = "fsl,imx6dl-wisehmi", "fsl,imx6dl";
+
+	chosen {
+        bootargs = "ubi.mtd=5 root=ubi0:rootfs rootfstype=ubifs rootwait rw console=ttymxc3,115200n8 lpj=7905280";
+    };
+
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB24";
+		mode_str ="LDB-1280x480";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+};
+
+&fec {
+	status = "okay";
+};
+
+&ldb {
+	status = "okay";
+};
+
+&gpmi {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&usdhc2 {
+	status = "okay";
+};
+
+&ecspi2 {
+	status = "okay";
+};
+

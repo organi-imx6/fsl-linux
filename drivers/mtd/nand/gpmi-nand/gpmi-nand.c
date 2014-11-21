@@ -647,6 +647,7 @@ static int init_hardware(struct gpmi_nand_data *this)
 	 * with any NAND Flash device
 	 * (although, with less-than-optimal performance).
 	 */
+	//*
 	struct nand_timing  safe_timing = {
 		.data_setup_in_ns        = 80,
 		.data_hold_in_ns         = 60,
@@ -656,6 +657,19 @@ static int init_hardware(struct gpmi_nand_data *this)
 		.tRLOH_in_ns             = -1,
 		.tRHOH_in_ns             = -1,
 	};
+	//*/
+
+	/* Samsung K9F1G08U0C
+	struct nand_timing  safe_timing = {
+		.data_setup_in_ns        = 12,
+		.data_hold_in_ns         = 5,
+		.address_setup_in_ns     = 12,
+		.gpmi_sample_delay_in_ns =  6,
+		.tREA_in_ns              = 20,
+		.tRLOH_in_ns             = 5,
+		.tRHOH_in_ns             = 15,
+	};
+	//*/
 
 	/* Initialize the hardwares. */
 	ret = gpmi_init(this);
