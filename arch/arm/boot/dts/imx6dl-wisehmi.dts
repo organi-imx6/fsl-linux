@@ -13,7 +13,11 @@
 
 / {
 	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
-	compatible = "fsl,imx6dl-wisehmi", "fsl,imx6dl";
+	compatible = "autorock,imx6dl-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
 
 	chosen {
         bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280";
@@ -42,11 +46,11 @@
 &ldb {
 	status = "okay";
 };
-
+/*
 &gpmi {
 	status = "okay";
 };
-
+*/
 &uart4 {
 	status = "okay";
 };
@@ -55,7 +59,18 @@
 	status = "okay";
 };
 
-&ecspi2 {
+&usdhc3 {
 	status = "okay";
 };
 
+&flexcan1 {
+	status = "okay";
+};
+
+&flexcan2 {
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};

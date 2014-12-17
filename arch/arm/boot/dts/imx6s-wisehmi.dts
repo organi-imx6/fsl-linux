@@ -16,11 +16,11 @@
 	compatible = "autorock,imx6dl-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
 
 	memory {
-		reg = <0x10000000 0x40000000>;
+		reg = <0x10000000 0x20000000>;
 	};
 
 	chosen {
-        bootargs = "ubi.mtd=5 root=ubi0:rootfs rootfstype=ubifs rootwait rw console=ttymxc3,115200n8 lpj=7905280";
+        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280";
     };
 
 	aliases {
@@ -46,13 +46,31 @@
 &ldb {
 	status = "okay";
 };
-
+/*
 &gpmi {
 	status = "okay";
 };
-
+*/
 &uart4 {
 	status = "okay";
 };
 
+&usdhc2 {
+	status = "okay";
+};
 
+&usdhc3 {
+	status = "okay";
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&flexcan2 {
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
