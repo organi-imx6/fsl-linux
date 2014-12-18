@@ -8,12 +8,12 @@
 
 /dts-v1/;
 
-#include "imx6dl.dtsi"
+#include "imx6q.dtsi"
 #include "imx6qdl-wisehmi.dtsi"
 
 / {
-	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
-	compatible = "autorock,imx6dl-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+	model = "Freescale i.MX6 Quad/Dual Wise HMI Board";
+	compatible = "autorock,imx6q-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6q";
 
 	memory {
 		reg = <0x10000000 0x40000000>;
