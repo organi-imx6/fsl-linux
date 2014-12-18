@@ -107,8 +107,8 @@ static int __init imx6q_flexcan_fixup_auto(void)
 
 static int wisehmi_flexcan_en_gpio[2] = {-1, -1};
 static int wisehmi_flexcan_stby_gpio[2] = {-1, -1};
-static int wisehmi_flexcan_en_gpio_active[2] = {1, 0};
-static int wisehmi_flexcan_stby_gpio_active[2] = {1, 0};
+static int wisehmi_flexcan_en_gpio_active[2];
+static int wisehmi_flexcan_stby_gpio_active[2];
 
 static void imx6q_flexcan_switch_wisehmi(int channel, int enable)
 {
@@ -119,7 +119,7 @@ static void imx6q_flexcan_switch_wisehmi(int channel, int enable)
 
 		if (wisehmi_flexcan_stby_gpio[channel] >= 0)
 			gpio_set_value_cansleep(wisehmi_flexcan_stby_gpio[channel],
-									wisehmi_flexcan_stby_gpio_active[channel]);
+									!wisehmi_flexcan_stby_gpio_active[channel]);
 	}
 	else {
 		if (wisehmi_flexcan_en_gpio[channel] >= 0)
@@ -128,7 +128,7 @@ static void imx6q_flexcan_switch_wisehmi(int channel, int enable)
 
 		if (wisehmi_flexcan_stby_gpio[channel] >= 0)
 			gpio_set_value_cansleep(wisehmi_flexcan_stby_gpio[channel],
-									!wisehmi_flexcan_stby_gpio_active[channel]);
+									wisehmi_flexcan_stby_gpio_active[channel]);
 	}
 }
 
@@ -153,25 +153,37 @@ static void __init imx6q_flexcan_fixup_wisehmi(void)
 	};
 
 	for (i = 0; i < 2; i++) {
+		enum of_gpio_flags flags;
+
 		np = of_find_node_by_path(path[i]);
 		if (!np)
 			continue;
 
-		en_gpio = of_get_named_gpio(np, "trx-en-gpio", 0);
+		en_gpio = of_get_named_gpio_flags(np, "trx-en-gpio", 0, &flags);
 		if (gpio_is_valid(en_gpio)) {
 			snprintf(name, sizeof(name), "flexcan%d-trx-en", i);
-			if (!gpio_request_one(en_gpio, GPIOF_DIR_OUT, name))
+			if (!gpio_request_one(en_gpio, GPIOF_DIR_OUT, name)) {
 				wisehmi_flexcan_en_gpio[i] = en_gpio;
+				if (flags == OF_GPIO_ACTIVE_LOW)
+					wisehmi_flexcan_en_gpio_active[i] = 0;
+				else
+					wisehmi_flexcan_en_gpio_active[i] = 1;
+			}
 		}
 
-		stby_gpio = of_get_named_gpio(np, "trx-stby-gpio", 0);
+		stby_gpio = of_get_named_gpio_flags(np, "trx-stby-gpio", 0, &flags);
 		if (gpio_is_valid(stby_gpio)) {
 			snprintf(name, sizeof(name), "flexcan%d-trx-stby", i);
-			if (!gpio_request_one(stby_gpio, GPIOF_DIR_OUT, name))
+			if (!gpio_request_one(stby_gpio, GPIOF_DIR_OUT, name)) {
 				wisehmi_flexcan_stby_gpio[i] = stby_gpio;
+				if (flags == OF_GPIO_ACTIVE_LOW)
+					wisehmi_flexcan_stby_gpio_active[i] = 0;
+				else
+					wisehmi_flexcan_stby_gpio_active[i] = 1;
+			}
 		}
 
-		err_gpio = of_get_named_gpio(np, "trx-nerr-gpio", 0);
+		err_gpio = of_get_named_gpio_flags(np, "trx-nerr-gpio", 0, &flags);
 		if (gpio_is_valid(err_gpio)) {
 			snprintf(name, sizeof(name), "flexcan%d-trx-err", i);
 			// err gpio is currently not used by driver
