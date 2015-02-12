@@ -1640,6 +1640,11 @@ config PROFILING
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.
 
+config SUPPORT_INITROOT
+        bool "Support the init-rootfs mount for fastboot"
+        help
+          Say Y here to support monitor the init-rootfs mount. It is useful for fastboot
+
 #
 # Place an empty function call at each tracepoint site. Can be
 # dynamically changed for a probe function.
