@@ -42,6 +42,267 @@ static int root_wait;
 
 dev_t ROOT_DEV;
 
+#ifdef CONFIG_SUPPORT_INITROOT
+#include <linux/namei.h>
+
+static char initroot_line[128], *pinitroot;
+static unsigned long root_timeout;
+static int realroot;
+
+static int __init do_mount_root(char *name, char *fs, int flags, void *data);
+
+struct initroot_info{
+	char *dev_name;
+	char *fs;
+	char *initscript;
+};
+
+static struct initroot_info last_initroot_info;
+
+/*
+	format: initroot=[wait time]:[device],[filesystem],[initscript];[device],[filesystem],[initscript]
+	example: 
+		initroot=20:/dev/mtdblock4,squashfs,/linurc
+*/
+static int get_initroot_info(struct initroot_info *info)
+{
+	char *s=pinitroot;
+
+	if(!s || *s==0){
+		return -1;
+	}
+
+	if((((u32)s)-((u32)initroot_line))>sizeof(initroot_line)){	//first use
+		strncpy(initroot_line, s, sizeof(initroot_line));
+		s = pinitroot = initroot_line;
+	}
+
+	memset(info, 0, sizeof(struct initroot_info));
+	
+	info->dev_name = s;
+	for(;;s++){
+		if (*s == ','){	//next
+			*s++ = 0;
+			break;
+		}
+		if (*s == ';' || *s == 0){	//end
+			*s++ = 0;
+			pinitroot = s;
+			printk(KERN_WARNING"error initroot format at device name\n");
+			return -1;
+		}
+	}
+
+	info->fs = s;
+	for(;;s++){
+		if (*s == ','){	//next
+			*s++ = 0;
+			break;
+		}
+		if (*s == ';' || *s == 0){	//end
+			*s++ = 0;
+			pinitroot = s;
+			printk(KERN_WARNING"error initroot format at fs name\n");
+			return -1;
+		}
+	}
+
+	info->initscript = s;
+	for(;;s++){
+		if (*s == ','){	//next
+			*s++ = 0;
+			break;
+		}
+		if (*s == ';' || *s == 0){	//end
+			*s++ = 0;
+			break;
+		}
+	}
+
+	memcpy(&last_initroot_info, info, sizeof(last_initroot_info));
+	pinitroot = s;
+
+	return 0;
+}
+
+static struct k_sigaction old_sa;
+
+static void dummy_fn(int sig)
+{
+}
+
+static int set_sigchld_dummy(void)
+{
+	struct k_sigaction new_sa;
+ 
+	new_sa.sa.sa_handler = dummy_fn;
+	new_sa.sa.sa_flags = SA_ONESHOT | SA_NOMASK;
+	sigemptyset(&new_sa.sa.sa_mask);
+
+	return do_sigaction(SIGCHLD, &new_sa, &old_sa);
+}
+
+static int recover_sigchld(void)
+{
+	return do_sigaction(SIGCHLD, &old_sa, NULL);
+}
+
+static int __init do_initroot(char *init_filename)
+{
+	static char *argv[2];
+	extern char * envp_init[];
+
+	argv[0] = init_filename;
+	argv[1] = NULL;
+
+	sys_close(realroot);
+	sys_close(0);sys_close(1);sys_close(2);
+
+	(void) sys_open("/dev/console",O_RDWR,0);
+	(void) sys_dup(0);
+	(void) sys_dup(0);
+
+	sys_chdir("/initroot");
+	sys_chroot(".");
+	devtmpfs_mount("dev");
+
+	return do_execve(init_filename, 
+		(const char __user *const __user *)argv, 
+		(const char __user *const __user *)envp_init);
+}
+
+static int __init wait_thread_cpu_time_below(pid_t pid, int percent, int timeout_seconds)
+{
+	cputime_t utime, stime;
+	unsigned long cur, total;
+	struct task_struct *task = find_task_by_vpid(pid);
+	if (!task){
+		printk("Can't find task by pid %d\n", pid);
+		return 0;
+	}
+
+	for(;timeout_seconds>0;timeout_seconds--){
+		thread_group_cputime_adjusted(task, &utime, &stime);
+		cur = cputime_to_jiffies(utime+stime);
+		total = jiffies;
+
+		msleep(1000);
+		thread_group_cputime_adjusted(task, &utime, &stime);
+		cur = cputime_to_jiffies(utime+stime) - cur;
+		total = jiffies - total;
+
+//		printk("%s(%d): %ld\n", __FUNCTION__, pid, (cur*100)/total);
+		if((cur*100)/total<percent)
+			return 0;
+	}
+	return -1;
+}
+
+__attribute__ ((weak)) int ubi_init_call(void);
+
+static int __init try_initroot(void)
+{
+	struct initroot_info info;
+	dev_t initroot_dev;
+	int retv=0;
+	pid_t pid;
+
+	retv=get_initroot_info(&info);
+	if(retv)
+		goto end;
+
+	initroot_dev = name_to_dev_t(info.dev_name);
+	/* wait for any asynchronous scanning to complete */
+	if(initroot_dev==0){
+		printk(KERN_INFO "Waiting for initroot device %s...\n",	info.dev_name);
+		while (driver_probe_done() != 0 ||
+			(initroot_dev = name_to_dev_t(info.dev_name))==0)
+			msleep(30);
+		async_synchronize_full();
+	}
+
+	create_dev("/dev/initroot", initroot_dev);
+
+	sys_mkdir("/initroot", 0700);
+	/* mount initroot on rootfs' /root */
+	if(sys_mount("/dev/initroot", "/initroot", info.fs, MS_RDONLY|MS_SILENT, NULL)==0){
+		long ret=0;
+		realroot = sys_open("/", 0, 0);
+
+		set_sigchld_dummy();
+
+		/*
+		 * In case that a resume from disk is carried out by linuxrc or one of
+		 * its children, we need to tell the freezer not to wait for us.
+		 */
+		current->flags |= PF_FREEZER_SKIP;
+
+		pid = kernel_thread((int (*)(void *))do_initroot, info.initscript, SIGCHLD|CLONE_FS);
+		if (pid > 0 && root_timeout > 0){
+			sigset_t waitset;
+
+			struct timespec timeout={.tv_sec = root_timeout};
+			sigisemptyset(&waitset);
+			sigaddset(&waitset, SIGUSR1);
+			sigaddset(&waitset, SIGCHLD);
+
+			for(;;){
+				ret = sys_rt_sigtimedwait(&waitset, NULL, &timeout, sizeof(sigset_t));
+				if (ret != -EINTR){// Interrupted by a signal other than SIGUSR1.
+					break;
+				}
+				printk("Wait int by others\n");
+			}
+			if (ret == -EAGAIN){
+				printk(KERN_WARNING"Wait SIGUSR1 Timeout, go on\n");
+				sys_kill(pid,SIGKILL);
+			}
+			else if(ret < 0){
+				printk(KERN_WARNING"sigtimedwait error\n");
+			}
+			else{ //init run ok
+				flush_signals(current); //we must flush it, otherwise init won't be run
+			}
+		}
+		current->flags &= ~PF_FREEZER_SKIP;
+		recover_sigchld();
+		wait_thread_cpu_time_below(pid+1, 50, root_timeout);
+
+		sys_fchdir(realroot);
+		sys_chroot(".");
+		if(ret == SIGCHLD || ret == -EAGAIN){
+			printk("initroot exit\n");
+			sys_umount("/initroot", MNT_DETACH);
+		}
+
+		sys_close(realroot);
+	}
+
+end:
+	if(ubi_init_call)
+		ubi_init_call();
+
+	return retv;
+}
+
+static int __init initroot_dev_setup(char *line)
+{
+	root_timeout = simple_strtoul(line, &line, 0);
+
+	if(*line!=':'){
+		root_timeout = 0;
+		pinitroot = NULL;
+		return 1;
+	}
+	line++;
+
+	pinitroot = line;
+	return 1;
+}
+
+__setup("initroot=", initroot_dev_setup);
+#endif
+
 static int __init load_ramdisk(char *str)
 {
 	rd_doload = simple_strtol(str,NULL,0) & 3;
@@ -395,6 +656,9 @@ retry:
 			case -EINVAL:
 				continue;
 		}
+#ifdef CONFIG_SUPPORT_INITROOT
+		goto out;
+#endif
 	        /*
 		 * Allow the user to distinguish between failed sys_open
 		 * and bad superblock on root device.
@@ -414,6 +678,9 @@ retry:
 #endif
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
+#ifdef CONFIG_SUPPORT_INITROOT
+	goto out;
+#endif
 
 	printk("List of all partitions:\n");
 	printk_all_partitions();
@@ -551,6 +818,10 @@ void __init prepare_namespace(void)
 	wait_for_device_probe();
 
 	md_run_setup();
+
+#ifdef CONFIG_SUPPORT_INITROOT
+	try_initroot();
+#endif
 
 	if (saved_root_name[0]) {
 		root_device_name = saved_root_name;
