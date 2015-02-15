@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280";
+        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280 initroot=10:/dev/mmcblk0p3,squashfs,/startup/run quiet";
     };
 
 	aliases {
@@ -31,7 +31,7 @@
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "ldb";
 		interface_pix_fmt = "RGB24";
-		mode_str ="LDB-1280x480";
+		mode_str ="SHARP_LQ123K1LG03";
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
@@ -51,6 +51,10 @@
 	status = "okay";
 };
 */
+&uart2 {
+	status = "okay";
+};
+
 &uart4 {
 	status = "okay";
 };
