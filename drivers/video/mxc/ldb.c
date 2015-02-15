@@ -39,6 +39,7 @@
 #include <linux/of_device.h>
 #include <linux/mod_devicetable.h>
 #include "mxc_dispdrv.h"
+#include <video/of_display_timing.h>
 
 #define DISPDRV_LDB	"ldb"
 
@@ -134,49 +135,9 @@ struct ldb_data {
 
 static int g_ldb_mode;
 
-static struct fb_videomode ldb_modedb[] = {
-	{
-	 "LDB-WXGA", 60, 1280, 800, 14065,
-	 40, 40,
-	 10, 3,
-	 80, 10,
-	 0,
-	 FB_VMODE_NONINTERLACED,
-	 FB_MODE_IS_DETAILED,},
-	{
-	 "LDB-XGA", 60, 1024, 768, 15385,
-	 220, 40,
-	 21, 7,
-	 60, 10,
-	 0,
-	 FB_VMODE_NONINTERLACED,
-	 FB_MODE_IS_DETAILED,},
-	{
-	 "LDB-1080P60", 60, 1920, 1080, 7692,
-	 100, 40,
-	 30, 3,
-	 10, 2,
-	 0,
-	 FB_VMODE_NONINTERLACED,
-	 FB_MODE_IS_DETAILED,},
-	{
-	 "LDB-1280x480", 60, 1280, 480, 18867,
-	 268, 70,
-	 10, 10,
-	 70, 25,
-	 0,
-	 FB_VMODE_NONINTERLACED,
-	 FB_MODE_IS_DETAILED,},
-	{
-	 "LDB-800x480-TX18D45VM2BAA", 60, 800, 480, 30940,
-	 100, 100,
-	 10, 10,
-	 36, 20,
-	 0,
-	 FB_VMODE_NONINTERLACED,
-	 FB_MODE_IS_DETAILED,},
-};
-static int ldb_modedb_sz = ARRAY_SIZE(ldb_modedb);
+static struct fb_videomode* ldb_modedb = NULL;
+static int ldb_modedb_sz = 0;
+static int disp_mapping[2] = {1,1};
 
 static inline int is_imx6_ldb(struct fsl_mxc_ldb_platform_data *plat_data)
 {
@@ -267,10 +228,13 @@ static int ldb_get_of_property(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	int err;
+	int err_jeida;
 	u32 ipu_id, disp_id;
 	u32 sec_ipu_id, sec_disp_id;
 	char *mode;
 	u32 ext_ref;
+	char *bm = NULL;
+	int ret;
 
 	err = of_property_read_string(np, "mode", (const char **)&mode);
 	if (err) {
@@ -302,6 +266,18 @@ static int ldb_get_of_property(struct platform_device *pdev,
 		dev_dbg(&pdev->dev, "get of property sec_disp_id fail\n");
 		return err;
 	}
+	err_jeida = of_property_read_string(np, "channel0_mode", (const char **)&bm);
+	if (!err_jeida) {
+		ret = strcmp(bm,"jeida");
+		disp_mapping[0] = ret;
+	}
+	err_jeida = of_property_read_string(np, "channel1_mode", (const char **)&bm);
+	if (!err_jeida) {
+		bm = NULL;
+		ret = strcmp(bm,"jeida");
+		disp_mapping[1] = ret;
+	}
+	dev_dbg(&pdev->dev, "disp_mapping[0] = %d,disp_mapping[1] = %d\r\n",disp_mapping[0],disp_mapping[1]);
 
 	plat_data->mode = parse_ldb_mode(mode);
 	plat_data->ext_ref = ext_ref;
@@ -309,7 +285,7 @@ static int ldb_get_of_property(struct platform_device *pdev,
 	plat_data->disp_id = disp_id;
 	plat_data->sec_ipu_id = sec_ipu_id;
 	plat_data->sec_disp_id = sec_disp_id;
-
+	ldb_modedb = of_get_display_timings_autorock(pdev->dev.of_node, &ldb_modedb_sz);
 	return err;
 }
 
@@ -557,6 +533,8 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 	char div_3_5_clk[] = "di0_div_3_5";
 	char div_7_clk[] = "di0_div_7";
 	char div_sel_clk[] = "di0_div_sel";
+	int data_jeida_mapping0 = 0;
+	int data_jeida_mapping1 = 0;
 
 	/* if input format not valid, make RGB666 as default*/
 	if (!valid_mode(setting->if_fmt)) {
@@ -564,6 +542,9 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 					" use default RGB666\n");
 		setting->if_fmt = IPU_PIX_FMT_RGB666;
 	}
+
+	data_jeida_mapping0 = (disp_mapping[0]) ? 0 : LDB_BIT_MAP_CH0_JEIDA;
+	data_jeida_mapping1 = (disp_mapping[1]) ? 0 : LDB_BIT_MAP_CH1_JEIDA;
 
 	if (!ldb->inited) {
 		setting_idx = 0;
@@ -599,7 +580,7 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 		reg &= ~(LDB_DATA_WIDTH_CH0_MASK | LDB_DATA_WIDTH_CH1_MASK);
 
 		if (bits_per_pixel(setting->if_fmt) == 24)
-			reg |= LDB_DATA_WIDTH_CH0_24 | LDB_DATA_WIDTH_CH1_24;
+			reg |= LDB_DATA_WIDTH_CH0_24 | LDB_DATA_WIDTH_CH1_24 | data_jeida_mapping0 | data_jeida_mapping1;
 		else
 			reg |= LDB_DATA_WIDTH_CH0_18 | LDB_DATA_WIDTH_CH1_18;
 
@@ -762,11 +743,15 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 		ch_val = reg & ch_mask;
 
 		if (bits_per_pixel(setting->if_fmt) == 24) {
-			if (lvds_channel == 0)
+			if (lvds_channel == 0) {
 				reg |= LDB_DATA_WIDTH_CH0_24;
-			else
+				reg |= data_jeida_mapping0;
+			}
+			else {
 				reg |= LDB_DATA_WIDTH_CH1_24;
-		} else {
+				reg |= data_jeida_mapping1;
+			}
+		} else { /*jeida only support width 24,not support on width 18*/
 			if (lvds_channel == 0)
 				reg |= LDB_DATA_WIDTH_CH0_18;
 			else
@@ -830,18 +815,23 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 	if (is_imx6_ldb(plat_data))
 		ldb_ipu_ldb_route(setting->dev_id, setting->disp_id, ldb);
 
+	if (!ldb_modedb) {
+		dev_err(&ldb->pdev->dev, "ldb_modedb is NULL\n");
+		return ret;
+	}
+
 	/* must use spec video mode defined by driver */
 	ret = fb_find_mode(&setting->fbi->var, setting->fbi, setting->dft_mode_str,
 				ldb_modedb, ldb_modedb_sz, NULL, setting->default_bpp);
-	if (ret != 1)
-		fb_videomode_to_var(&setting->fbi->var, &ldb_modedb[0]);
-
+	if (ret != 1) {
+		fb_videomode_to_var(&setting->fbi->var, ldb_modedb);
+	}
 	INIT_LIST_HEAD(&setting->fbi->modelist);
 	for (i = 0; i < ldb_modedb_sz; i++) {
 		struct fb_videomode m;
 		fb_var_to_videomode(&m, &setting->fbi->var);
-		if (fb_mode_is_equal(&m, &ldb_modedb[i])) {
-			fb_add_videomode(&ldb_modedb[i],
+		if (fb_mode_is_equal(&m, (ldb_modedb+i))) {
+			fb_add_videomode((ldb_modedb+i),
 					&setting->fbi->modelist);
 			break;
 		}

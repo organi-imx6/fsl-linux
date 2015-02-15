@@ -27,11 +27,15 @@
 		mxcfb0 = &mxcfb1;
 	};
 
+	/*ldb and lcd device naming rules: [manufacturers name]_[product number]
+	 * all letters must be uppercase
+	 * not allow named like :xxxx-1280x480
+	 */
 	mxcfb1: fb@0 {
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "ldb";
 		interface_pix_fmt = "RGB24";
-		mode_str ="LDB-1280x480";
+		mode_str = "SHARP_LQ123K1LG03";
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
@@ -45,7 +49,83 @@
 
 &ldb {
 	status = "okay";
+	channel0_mode = "jeida";
+	display-timings { 
+		HITACHI_TX18D45VM2BAA {
+			clock-frequency = <32321000>;
+			hactive = <800>;
+			vactive = <480>;
+			hback-porch = <100>;
+			hfront-porch = <100>;
+			vback-porch = <10>;
+			vfront-porch = <10>;
+			hsync-len = <36>;
+			vsync-len = <20>;
+		};
+		KOE_TX31D200VM0BAA { /*keo panel,this ldb panel need switch to JEIDA mode*/
+			clock-frequency = <43200000>;
+			hactive = <1280>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <40>;
+			vback-porch = <20>;
+			vfront-porch = <30>;
+			hsync-len = <60>;
+			vsync-len = <10>;
+		};
+		SHARP_LQ123K1LG03 { /*sharp panel*/
+			clock-frequency = <53003000>;
+			hactive = <1280>;
+			vactive = <480>;
+			hback-porch = <268>;
+			hfront-porch = <70>;
+			vback-porch = <10>;
+			vfront-porch = <10>;
+			hsync-len = <70>;
+			vsync-len = <25>;
+		};
+	};
 };
+
+&lcd {
+	status = "disable";
+	display-timings { 
+		TX26D25VM2BAA { 
+			clock-frequency = <20000000>;
+			hactive = <800>;
+			vactive = <256>;
+			hback-porch = <80>;
+			hfront-porch = <160>;
+			vback-porch = <20>;
+			vfront-porch = <30>;
+			hsync-len = <16>;
+			vsync-len = <10>;
+		};
+		HSD070IDW1-G {
+			clock-frequency = <30000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <40>;
+			vback-porch = <13>;
+			vfront-porch = <29>;
+			hsync-len = <48>;
+			vsync-len = <3>;
+		};
+		LQ101K5DZ01 {
+			clock-frequency = <44240000>;
+			hactive = <1280>;
+			vactive = <424>;
+			hback-porch = <42>;
+			hfront-porch = <194>;
+			vback-porch = <15>;
+			vfront-porch = <35>;
+			hsync-len = <20>;
+			vsync-len = <8>;
+		};
+	};
+};
+
 /*
 &gpmi {
 	status = "okay";

@@ -11,7 +11,12 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <video/display_timing.h>
+#include <linux/fb.h>
+#include <uapi/linux/fb.h>
 #include <video/of_display_timing.h>
+#include <video/videomode.h>
+
+#define DISP_DEV_NAME_MAX_LENGTH 32
 
 /**
  * parse_timing_property - parse timing_entry from device_node
@@ -50,6 +55,55 @@ static int parse_timing_property(struct device_node *np, const char *name,
 	}
 
 	return ret;
+}
+
+char* fb_disp_store_devname(struct device_node *np)
+{
+	char* store_disp_name = NULL;
+	struct device_node *timings_np;
+	int num_timings = 0;
+	struct device_node *entry;
+	int i = 0;
+
+	timings_np = of_find_node_by_name(np, "display-timings");
+	num_timings = of_get_child_count(timings_np);
+	store_disp_name = kmalloc(num_timings*DISP_DEV_NAME_MAX_LENGTH, GFP_KERNEL);
+	for_each_child_of_node(timings_np, entry) {
+		strncpy((store_disp_name + (i*DISP_DEV_NAME_MAX_LENGTH)), entry->name, DISP_DEV_NAME_MAX_LENGTH);
+		*(store_disp_name + ((i+1)*DISP_DEV_NAME_MAX_LENGTH)-1) = 0;
+		i ++;
+	}
+	return store_disp_name; 
+}
+
+struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int* size)
+{
+	struct display_timings* disp = NULL;
+	int i = 0;
+	struct fb_videomode *fb_vm = NULL;
+	struct videomode vm;
+	char* store_disp_name = NULL;
+	
+	disp = of_get_display_timings(np);
+	if (!disp) {
+		pr_err("of_get_display_timings_autorock disp is NULL\r\n");
+		return NULL;
+	}
+	*size = disp->num_timings;
+	fb_vm = kmalloc(sizeof(struct fb_videomode)*(*size), GFP_KERNEL);
+	if (!fb_vm) {
+		display_timings_release(disp);
+		pr_err("of_get_display_timings_autorock fb_vm is NULL\r\n");
+		return NULL;
+	}
+	store_disp_name = fb_disp_store_devname(np);
+	for(i = 0; i < disp->num_timings; i ++) {
+		videomode_from_timing(disp->timings[i], &vm);
+		fb_videomode_from_videomode(&vm, (fb_vm + i));
+		(fb_vm + i)->name = (store_disp_name + (i*DISP_DEV_NAME_MAX_LENGTH));
+	}
+	display_timings_release(disp);
+	return fb_vm;
 }
 
 /**
