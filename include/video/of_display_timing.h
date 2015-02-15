@@ -8,7 +8,6 @@
 
 #ifndef __LINUX_OF_DISPLAY_TIMING_H
 #define __LINUX_OF_DISPLAY_TIMING_H
-
 struct device_node;
 struct display_timing;
 struct display_timings;
@@ -19,5 +18,5 @@ int of_get_display_timing(struct device_node *np, const char *name,
 		struct display_timing *dt);
 struct display_timings *of_get_display_timings(struct device_node *np);
 int of_display_timings_exist(struct device_node *np);
-
+struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int* size);
 #endif

@@ -19,6 +19,9 @@
 #include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <video/display_timing.h>
+#include <video/videomode.h>
+#include <video/of_display_timing.h>
 
 #include "mxc_dispdrv.h"
 
@@ -34,22 +37,8 @@ struct mxc_lcdif_data {
 };
 
 #define DISPDRV_LCD	"lcd"
-
-static struct fb_videomode lcdif_modedb[] = {
-	{
-	/* 800x480 @ 57 Hz , pixel clk @ 27MHz */
-	"CLAA-WVGA", 57, 800, 480, 37037, 40, 60, 10, 10, 20, 10,
-	FB_SYNC_CLK_LAT_FALL,
-	FB_VMODE_NONINTERLACED,
-	0,},
-	{
-	/* 800x480 @ 60 Hz , pixel clk @ 32MHz */
-	"SEIKO-WVGA", 60, 800, 480, 29850, 89, 164, 23, 10, 10, 10,
-	FB_SYNC_CLK_LAT_FALL,
-	FB_VMODE_NONINTERLACED,
-	0,},
-};
-static int lcdif_modedb_sz = ARRAY_SIZE(lcdif_modedb);
+static struct fb_videomode* lcdif_modedb = NULL;
+static int lcdif_modedb_sz = 0;
 
 static int lcdif_init(struct mxc_dispdrv_handle *disp,
 	struct mxc_dispdrv_setting *setting)
@@ -151,7 +140,7 @@ static int lcd_get_of_property(struct platform_device *pdev,
 		dev_err(&pdev->dev, "err default_ifmt!\n");
 		return -ENOENT;
 	}
-
+	lcdif_modedb = of_get_display_timings_autorock(pdev->dev.of_node, &lcdif_modedb_sz);
 	return err;
 }
 
