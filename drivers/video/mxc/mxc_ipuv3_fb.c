@@ -48,6 +48,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
+#include <linux/splashfb.h>
 
 #include "mxc_dispdrv.h"
 
@@ -2432,6 +2433,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 			mxcfbi->cur_blank = mxcfbi->next_blank = FB_BLANK_POWERDOWN;
 
 		ret = mxcfb_register(fbi);
+		show_splash_autorock(fbi);
 		if (ret < 0)
 			goto mxcfb_register_failed;
 

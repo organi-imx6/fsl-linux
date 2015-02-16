@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280 initroot=10:/dev/mmcblk0p3,squashfs,/startup/run quiet";
+        bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280 splash=0x13000000,0x100000 initroot=10:/dev/mmcblk0p3,squashfs,/startup/run quiet";
     };
 
 	aliases {
