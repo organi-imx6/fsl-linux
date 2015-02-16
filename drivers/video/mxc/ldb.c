@@ -817,7 +817,7 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 
 	if (!ldb_modedb) {
 		dev_err(&ldb->pdev->dev, "ldb_modedb is NULL\n");
-		return ret;
+		return -ENXIO;
 	}
 
 	/* must use spec video mode defined by driver */
