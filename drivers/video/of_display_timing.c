@@ -13,6 +13,7 @@
 #include <video/display_timing.h>
 #include <linux/fb.h>
 #include <uapi/linux/fb.h>
+#include <uapi/linux/mxcfb.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
@@ -100,6 +101,10 @@ struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int
 	for(i = 0; i < disp->num_timings; i ++) {
 		videomode_from_timing(disp->timings[i], &vm);
 		fb_videomode_from_videomode(&vm, (fb_vm + i));
+		if (!(vm.flags & DISPLAY_FLAGS_DE_HIGH))
+			(fb_vm + i)->sync |= FB_SYNC_OE_LOW_ACT;
+		if (vm.flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+			(fb_vm + i)->sync |= FB_SYNC_CLK_LAT_FALL;
 		(fb_vm + i)->name = (store_disp_name + (i*DISP_DEV_NAME_MAX_LENGTH));
 	}
 	display_timings_release(disp);
