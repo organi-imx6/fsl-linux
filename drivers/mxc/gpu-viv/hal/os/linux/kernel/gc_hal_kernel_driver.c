@@ -1119,7 +1119,7 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 	init_dma_attrs(&pool->attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &pool->attrs);
 	pool->virt = dma_alloc_attrs(&pdev->dev, pool->size, &pool->phys,
-				     GFP_KERNEL, &pool->attrs);
+				     GFP_KERNEL|__GFP_NOCLEAN, &pool->attrs);
 	if (!pool->virt) {
 		dev_err(&pdev->dev, "Failed to allocate contiguous memory\n");
 		return -ENOMEM;
