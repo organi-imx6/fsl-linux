@@ -204,28 +204,35 @@ static int __init try_initroot(void)
 {
 	struct initroot_info info;
 	dev_t initroot_dev;
-	int retv=0;
+	int retv=0, mount_initroot_sucess=0;
 	pid_t pid;
 
 	retv=get_initroot_info(&info);
 	if(retv)
 		goto end;
 
-	initroot_dev = name_to_dev_t(info.dev_name);
-	/* wait for any asynchronous scanning to complete */
-	if(initroot_dev==0){
-		printk(KERN_INFO "Waiting for initroot device %s...\n",	info.dev_name);
-		while (driver_probe_done() != 0 ||
-			(initroot_dev = name_to_dev_t(info.dev_name))==0)
-			msleep(30);
-		async_synchronize_full();
+	if(strcmp(info.fs, "initramfs")==0)
+		mount_initroot_sucess=1;
+	else{
+		initroot_dev = name_to_dev_t(info.dev_name);
+		/* wait for any asynchronous scanning to complete */
+		if(initroot_dev==0){
+			printk(KERN_INFO "Waiting for initroot device %s...\n",	info.dev_name);
+			while (driver_probe_done() != 0 ||
+				(initroot_dev = name_to_dev_t(info.dev_name))==0)
+				msleep(30);
+			async_synchronize_full();
+		}
+
+		create_dev("/dev/initroot", initroot_dev);
+
+		sys_mkdir("/initroot", 0700);
+		/* mount initroot on rootfs /initroot */
+		mount_initroot_sucess = 
+			(sys_mount("/dev/initroot", "/initroot", info.fs, MS_RDONLY|MS_SILENT, NULL)==0);
 	}
 
-	create_dev("/dev/initroot", initroot_dev);
-
-	sys_mkdir("/initroot", 0700);
-	/* mount initroot on rootfs' /root */
-	if(sys_mount("/dev/initroot", "/initroot", info.fs, MS_RDONLY|MS_SILENT, NULL)==0){
+	if(mount_initroot_sucess){
 		long ret=0;
 		realroot = sys_open("/", 0, 0);
 
@@ -272,7 +279,9 @@ static int __init try_initroot(void)
 		sys_chroot(".");
 		if(ret == SIGCHLD || ret == -EAGAIN){
 			printk("initroot exit\n");
-			sys_umount("/initroot", MNT_DETACH);
+			sys_umount("/initroot/dev", MNT_DETACH);
+			if(strcmp(info.fs, "initramfs"))
+				sys_umount("/initroot", MNT_DETACH);
 		}
 
 		sys_close(realroot);
