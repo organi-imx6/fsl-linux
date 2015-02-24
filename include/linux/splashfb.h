@@ -3,10 +3,10 @@
 
 #ifdef CONFIG_FB_CMD_SPLASH
 #include <linux/fb.h>
-void __init show_splash_autorock(const struct fb_info *info);
+int __init show_splash_autorock(const struct fb_info *info);
 
 #else
-#define show_splash_autorock(info)
+#define show_splash_autorock(info)     (-1)
 
 #endif
 
