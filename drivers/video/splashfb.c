@@ -50,30 +50,35 @@ static void decompress_output(char *buf)
 {
 	printk("%s\n", buf);
 }
-	
-void __init show_splash_autorock(const struct fb_info *info)
+
+int __init show_splash_autorock(const struct fb_info *info)
 {
+	int ret=0;
 	splash_header *hd;
 	if(splash_addr == 0 || splash_size == 0)
-		return;
+		return -1;
 
 	hd = (splash_header*)__phys_to_virt(splash_addr);
 	
 	if (!hd) {
-		printk("function %s, __phys_to_virt fail\r\n",__FUNCTION__);	
+		printk("function %s, __phys_to_virt fail\r\n",__FUNCTION__);
+		return -1;
 	}
 
 	if (hd->magic != SPLASH_MAGIC) {
 		printk("wrong splash format\n");
-		return;
+		return -1;
 	}
 	splash_dst = info->screen_base;
 	splash_dst_end = info->screen_base + info->fix.smem_len;
 
-	if(gunzip((unsigned char*)(hd+1), splash_size, NULL, decompress_flush, NULL, NULL, decompress_output))
+	if(gunzip((unsigned char*)(hd+1), splash_size, NULL, decompress_flush, NULL, NULL, decompress_output)){
 		printk("unzip splash failed\n");
+		ret=-1;
+	}
 
 	memblock_free(splash_addr, splash_size);
+	return ret;
 }
 
 __setup("splash=", splash_setup);

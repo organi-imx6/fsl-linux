@@ -1752,7 +1752,7 @@ static int mxcfb_map_video_memory(struct fb_info *fbi)
 	fbi->screen_base = dma_alloc_writecombine(fbi->device,
 				fbi->fix.smem_len,
 				(dma_addr_t *)&fbi->fix.smem_start,
-				GFP_DMA | GFP_KERNEL);
+				GFP_DMA | GFP_KERNEL | __GFP_NOCLEAN);
 	if (fbi->screen_base == 0) {
 		dev_err(fbi->device, "Unable to allocate framebuffer memory\n");
 		fbi->fix.smem_len = 0;
@@ -2439,9 +2439,9 @@ static int mxcfb_probe(struct platform_device *pdev)
 			mxcfbi->cur_blank = mxcfbi->next_blank = FB_BLANK_POWERDOWN;
 
 		ret = mxcfb_register(fbi);
-		show_splash_autorock(fbi);
 		if (ret < 0)
 			goto mxcfb_register_failed;
+		show_splash_autorock(fbi);
 
 		ipu_disp_set_global_alpha(mxcfbi->ipu, mxcfbi->ipu_ch,
 					  true, 0x80);
