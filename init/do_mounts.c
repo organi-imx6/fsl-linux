@@ -198,7 +198,7 @@ static int __init wait_thread_cpu_time_below(pid_t pid, int percent, int timeout
 	return -1;
 }
 
-__attribute__ ((weak)) int ubi_init_call(void);
+extern void do_deferred_initcalls(void);
 
 static int __init try_initroot(void)
 {
@@ -288,8 +288,7 @@ static int __init try_initroot(void)
 	}
 
 end:
-	if(ubi_init_call)
-		ubi_init_call();
+	do_deferred_initcalls();
 
 	return retv;
 }

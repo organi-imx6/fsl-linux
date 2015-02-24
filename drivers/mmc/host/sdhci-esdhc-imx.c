@@ -1271,7 +1271,7 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 	.remove		= sdhci_esdhc_imx_remove,
 };
 
-module_platform_driver(sdhci_esdhc_imx_driver);
+deferred_module_platform_driver(sdhci_esdhc_imx_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for Freescale i.MX eSDHC");
 MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
