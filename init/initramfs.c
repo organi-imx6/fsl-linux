@@ -579,6 +579,47 @@ static void __init clean_rootfs(void)
 }
 #endif
 
+#ifdef CONFIG_SUPPORT_INITROOT
+static int __init populate_initrootfs(void)
+{
+	int err;
+	char* errmsg;
+
+	err = sys_mkdir((const char __user __force *) "/dev", 0755);
+	if (err < 0)
+		goto out;
+
+	err = sys_mknod((const char __user __force *) "/dev/console",
+			S_IFCHR | S_IRUSR | S_IWUSR,
+			new_encode_dev(MKDEV(5, 1)));
+	if (err < 0)
+		goto out;
+
+	err = sys_mkdir((const char __user __force *) "/root", 0700);
+	if (err < 0)
+		goto out;
+
+	/*create initroot when cpio (find initroot | cpio -o -H newc > initramfs.cpio)*/
+/*	err = sys_mkdir((const char __user __force *) "/initroot", 0700);
+	if (err < 0)
+		goto out;
+*/
+
+	printk(KERN_INFO "Unpacking initramfs...\n");
+	errmsg = unpack_to_rootfs((char *)initrd_start,
+		initrd_end - initrd_start);
+	if (errmsg)
+		printk(KERN_EMERG "Initramfs unpacking failed: %s\n", errmsg);
+	free_initrd();
+
+	return 0;
+
+out:
+	printk(KERN_WARNING "Failed to create a rootfs for initroot\n");
+	return err;
+}
+rootfs_initcall(populate_initrootfs);
+#else
 static int __init populate_rootfs(void)
 {
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
@@ -625,3 +666,4 @@ static int __init populate_rootfs(void)
 	return 0;
 }
 rootfs_initcall(populate_rootfs);
+#endif
