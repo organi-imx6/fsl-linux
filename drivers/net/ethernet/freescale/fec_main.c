@@ -1085,6 +1085,58 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	return pkts;
 }
 
+#ifdef CONFIG_MFD_SYSCON
+static u64 BKDRHash(u64 hash, u32 data)
+{
+	u64 seed = 13131; // 31 131 1313 13131 131313 etc..
+	int i;
+
+	for(i=0;i<4;i++){
+		hash = hash * seed + (data&0xff);
+		data>>=8;
+	}
+
+	return hash;
+}
+
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+
+#define OCOTP_UNIQUE_ID(n)	(0x0410+((n)<<4))
+static int fec_get_hash_mac(struct device	*dev, unsigned char *mac_addr)
+{
+	struct regmap *map;
+	int ret, i;
+	unsigned int val;
+	u64 hash=0;
+
+	map = syscon_regmap_lookup_by_phandle(dev->of_node,
+					  "fsl,otp-data");
+	if (IS_ERR(map)) {
+		ret = PTR_ERR(map);
+		dev_err(dev, "failed to get otp-data regmap: %d\n", ret);
+		return ret;
+	}
+
+	for(i=0;i<2;i++){
+		ret = regmap_read(map, OCOTP_UNIQUE_ID(i), &val);
+		if (ret) {
+			dev_err(dev, "failed to read sensor data: %d\n", ret);
+			return ret;
+		}
+		hash = BKDRHash(hash, val);
+	}
+
+	memcpy(mac_addr, &hash,6);
+	mac_addr[0] &= 0xfe;	/* clear multicast bit */
+	mac_addr[0] |= 0x02;	/* set local assignment bit (IEEE802) */
+
+	return 0;
+}
+#else
+#define fec_get_hash_mac(dev, addr)		(-1)
+#endif
+
 /* ------------------------------------------------------------------------- */
 static void fec_get_mac(struct net_device *ndev)
 {
@@ -1137,9 +1189,15 @@ static void fec_get_mac(struct net_device *ndev)
 	}
 
 	/*
-	 * 5) random mac address
+	 * 5) Unique ID hash mac address
 	 */
-	if (!is_valid_ether_addr(iap)) {
+	if (!is_valid_ether_addr(iap))
+		fec_get_hash_mac(&fep->pdev->dev, iap);
+
+	/*
+	 * 6) random mac address
+	 */
+	if (!is_valid_ether_addr(iap)){
 		/* Report it and use a random ethernet address instead */
 		netdev_err(ndev, "Invalid MAC address: %pM\n", iap);
 		eth_hw_addr_random(ndev);
