@@ -211,16 +211,29 @@ static int __init try_initroot(void)
 	if(retv)
 		goto end;
 
-	if(strcmp(info.fs, "initramfs")==0)
+#ifdef CONFIG_BLK_DEV_INITRD
+	if(strcmp(info.fs, "initramfs")==0){
+		extern void wait_populate_initrootfs_done(void);
+		wait_populate_initrootfs_done();
 		mount_initroot_sucess=1;
-	else{
+	}
+	else
+#endif
+	{
 		initroot_dev = name_to_dev_t(info.dev_name);
 		/* wait for any asynchronous scanning to complete */
 		if(initroot_dev==0){
+			unsigned int time=0;
 			printk(KERN_INFO "Waiting for initroot device %s...\n",	info.dev_name);
 			while (driver_probe_done() != 0 ||
-				(initroot_dev = name_to_dev_t(info.dev_name))==0)
-				msleep(30);
+				(initroot_dev = name_to_dev_t(info.dev_name))==0){
+				time++;
+				if(time>root_timeout*10){
+					printk(KERN_INFO "Waiting for initroot device %s timeout\n", info.dev_name);
+					goto end;
+				}
+				msleep(100);
+			}
 			async_synchronize_full();
 		}
 
