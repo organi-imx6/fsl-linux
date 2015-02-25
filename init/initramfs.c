@@ -580,10 +580,30 @@ static void __init clean_rootfs(void)
 #endif
 
 #ifdef CONFIG_SUPPORT_INITROOT
+#include <linux/async.h>
+static async_cookie_t populate_initrootfs_cookie;
+
+void __init wait_populate_initrootfs_done(void)
+{
+	if(populate_initrootfs_cookie)
+		async_synchronize_cookie(populate_initrootfs_cookie);
+}
+
+static void __init async_populate_initrootfs(void *data, async_cookie_t cookie)
+{
+	char* errmsg;
+	printk(KERN_INFO "Unpacking initramfs...\n");
+	errmsg = unpack_to_rootfs((char *)initrd_start,
+		initrd_end - initrd_start);
+	if (errmsg)
+		printk(KERN_EMERG "Initramfs unpacking failed: %s\n", errmsg);
+	free_initrd();
+	printk(KERN_INFO "Unpacking initramfs done\n");
+}
+
 static int __init populate_initrootfs(void)
 {
 	int err;
-	char* errmsg;
 
 	err = sys_mkdir((const char __user __force *) "/dev", 0755);
 	if (err < 0)
@@ -604,13 +624,8 @@ static int __init populate_initrootfs(void)
 	if (err < 0)
 		goto out;
 */
-
-	printk(KERN_INFO "Unpacking initramfs...\n");
-	errmsg = unpack_to_rootfs((char *)initrd_start,
-		initrd_end - initrd_start);
-	if (errmsg)
-		printk(KERN_EMERG "Initramfs unpacking failed: %s\n", errmsg);
-	free_initrd();
+	populate_initrootfs_cookie = 
+		async_schedule(async_populate_initrootfs, NULL);
 
 	return 0;
 
