@@ -1,0 +1,161 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
+	compatible = "autorock,imx6dl-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "root=ubi0:rootfs rootfstype=ubifs ubi.mtd=ubifs rw console=ttymxc1,115200n8";
+    };
+
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
+	/*ldb and lcd device naming rules: [manufacturers name]_[product number]
+	 * all letters must be uppercase
+	 * not allow named like :xxxx-1280x480
+	 */
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB24";
+		mode_str = "AUO_A070XN01";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet_4>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio1 4 0>;
+	status = "okay";
+};
+
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi_nand_2>;
+	nand-on-flash-bbt;
+	status = "okay";
+
+	partition@0 {
+		label = "kernel";
+		reg = <0x0 0x500000>;
+	};
+	partition@500000 {
+		label = "ubifs";
+		reg = <0x500000 0x0>;
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3_2>;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4_1>;
+	status = "okay";
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5_1>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2_2>;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_1_50mhz>;
+	bus-width = <8>;
+	status = "okay";
+};
+
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1_1>;
+	status = "okay";
+};
+
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2_1>;
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&ldb {
+	ipu_id = <0>;
+	disp_id = <0>;
+	ext_ref = <1>;
+	mode = "sin0";
+	sec_ipu_id = <0>;
+	sec_disp_id = <1>;
+	status = "okay";
+
+	display-timings { 
+		AUO_A070XN01 {
+			clock-frequency = <65000000>; /*HZ*/
+			hactive = <1024>;
+			vactive = <768>;
+			hback-porch = <104>;
+			hfront-porch = <88>;
+			vback-porch = <23>;
+			vfront-porch = <11>;
+			hsync-len = <128>;
+			vsync-len = <4>;
+		};
+		AUO_A070SN02 {
+			clock-frequency = <40000000>; /*HZ*/
+			hactive = <800>;
+			vactive = <600>;
+			hback-porch = <40>;
+			hfront-porch = <88>;
+			vback-porch = <39>;
+			vfront-porch = <23>;
+			hsync-len = <128>;
+			vsync-len = <4>;
+		};
+	};
+};
