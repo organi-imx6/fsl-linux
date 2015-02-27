@@ -381,6 +381,11 @@ config HMC6352
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
 
+config RBT_FPGA
+	tristate "RBT FPGA support"
+	help
+	  This option enables device driver support for the RBT FPGA.
+
 config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
 	depends on I2C
