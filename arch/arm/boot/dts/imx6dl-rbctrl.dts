@@ -20,6 +20,7 @@
 
 	chosen {
 		bootargs = "root=ubi0:rootfs rootfstype=ubifs ubi.mtd=ubifs rw console=ttymxc1,115200n8";
+//		bootargs = "console=ttymxc1,115200n8 root=/dev/nfs nfsroot=192.168.0.55:/data/samba/nfs/mx6/rbctrl-root ip=192.168.0.114:192.168.0.254:192.168.0.254:255.255.255.0:freescale:eth0:off init=/linuxrc";
     };
 
 	aliases {
@@ -156,6 +157,7 @@
 				MX6QDL_PAD_GPIO_3__GPIO1_IO03   0x80000000	//gpio1.3 usb host1 over current
 				MX6QDL_PAD_EIM_D21__GPIO3_IO21  0x80000000	//gpio3.21 usb otg over current
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID	0x80000000	//usb otg id
+				MX6QDL_PAD_GPIO_8__GPIO1_IO08	0x80000000	//fpga interrupt
 			>;
 		};
 	};
@@ -265,8 +267,10 @@
 	status = "okay";
 
 	fpga@0,0 {
-		compatible = "mtd-ram";
+		compatible = "rbctrl-fpga";
 		reg = <0 0 0x4000>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <8 0x8>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
