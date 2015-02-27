@@ -1828,6 +1828,11 @@
 				MX6QDL_PAD_EIM_CS0__EIM_CS0_B   0xb0b1
 			>;
 		};
+		pinctrl_weim_cs1_1: weim_cs1grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_CS1__EIM_CS1_B	0xb0b1
+			>;
+		};
 
 		pinctrl_weim_nor_1: weim_norgrp-1 {
 			fsl,pins = <

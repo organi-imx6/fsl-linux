@@ -108,6 +108,25 @@ err:
 	return -EINVAL;
 }
 
+/* Parse and set the weim register */
+static int __init weim_reg_setup(struct device_node *np, void __iomem *base)
+{
+	struct property *prop;
+	const __be32 *p;
+	u32 offset, val;
+
+	of_property_for_each_u32(np, "fsl,weim-reg-set", prop, p, offset) {
+		p = of_prop_next_u32(prop, p, &val);
+		if(!p){
+			printk("Invalid 'fsl,weim-reg-set' configuration\n");
+			return -EINVAL;
+		}
+		writel(val, base + offset);
+	}
+
+	return 0;
+}
+
 /* Parse and set the timing for this device. */
 static int __init weim_timing_setup(struct device_node *np, void __iomem *base,
 				    const struct imx_weim_devtype *devtype)
@@ -149,6 +168,10 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 		if (ret)
 			return ret;
 	}
+
+	ret = weim_reg_setup(pdev->dev.of_node, base);
+	if (ret)
+		return ret;
 
 	for_each_child_of_node(pdev->dev.of_node, child) {
 		if (!child->name)
