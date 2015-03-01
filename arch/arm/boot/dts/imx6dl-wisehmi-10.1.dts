@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-wisehmi.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
+	compatible = "autorock,imx6dl-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280 quiet initroot=10:none,initramfs,/startup/run";
+    };
+
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
+	/*ldb and lcd device naming rules: [manufacturers name]_[product number]
+	 * all letters must be uppercase
+	 * not allow named like :xxxx-1280x480
+	 */
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "lcd";
+		interface_pix_fmt = "BGR24";
+		mode_str = "LQ101K5DZ01";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+};
+
+&fec {
+	status = "okay";
+};
+
+&lcd {
+	status = "okay";
+};
+/*
+&gpmi {
+	status = "okay";
+};
+*/
+&uart2 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&usdhc2 {
+	status = "okay";
+};
+
+&usdhc3 {
+	status = "okay";
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&flexcan2 {
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
