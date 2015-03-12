@@ -20,6 +20,7 @@
 
 
 #include "gc_hal_kernel_precomp.h"
+#include <asm/byteorder.h>
 
 #define _GC_OBJ_ZONE    gcvZONE_MMU
 
@@ -113,15 +114,15 @@ _WritePageEntry(
     IN gctUINT32     EntryValue
     )
 {
-    static gctUINT16 data = 0xff00;
+/*    static gctUINT16 data = 0xff00;
 
     if (*(gctUINT8 *)&data == 0xff)
     {
         *PageEntry = gcmSWAB32(EntryValue);
     }
-    else
+    else*/
     {
-        *PageEntry = EntryValue;
+        *PageEntry = le32_to_cpu(EntryValue);
     }
 }
 
@@ -130,7 +131,7 @@ _ReadPageEntry(
     IN gctUINT32_PTR PageEntry
     )
 {
-    static gctUINT16 data = 0xff00;
+/*    static gctUINT16 data = 0xff00;
     gctUINT32 entryValue;
 
     if (*(gctUINT8 *)&data == 0xff)
@@ -138,9 +139,9 @@ _ReadPageEntry(
         entryValue = *PageEntry;
         return gcmSWAB32(entryValue);
     }
-    else
+    else*/
     {
-        return *PageEntry;
+        return cpu_to_le32(*PageEntry);
     }
 }
 
