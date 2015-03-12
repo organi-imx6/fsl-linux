@@ -747,6 +747,7 @@ struct ipuv3_fb_platform_data {
 	 * channel in bootloader.
 	 */
 	bool                            late_init;
+	u32 min_nbuf;
 };
 
 #endif /* __LINUX_IPU_V3_H_ */

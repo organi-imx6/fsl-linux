@@ -39,6 +39,7 @@
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
+		min_nbuf = <2>;
 		status = "okay";
 	};
 
@@ -123,13 +124,17 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2_2>;
-	status = "okay";
+	no-1-8-v;
+	status = "disabled";
 };
 
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3_1_50mhz>;
 	bus-width = <8>;
+	keep-power-in-suspend;
+	non-removable;
+	no-1-8-v;
 	status = "okay";
 };
 
