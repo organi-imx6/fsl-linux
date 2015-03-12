@@ -2017,7 +2017,7 @@ gckOS_AllocateNonPagedMemory(
         addr = dma_alloc_coherent(gcvNULL,
                 mdl->numPages * PAGE_SIZE,
                 &mdl->dmaHandle,
-                GFP_KERNEL | gcdNOWARN);
+                GFP_KERNEL | gcdNOWARN | (mdl->numPages>10?__GFP_NOCLEAN:0));
     }
 #if gcdUSE_NON_PAGED_MEMORY_CACHE
     if(addr == gcvNULL)
