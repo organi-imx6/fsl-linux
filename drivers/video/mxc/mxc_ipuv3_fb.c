@@ -74,6 +74,7 @@ struct mxcfb_info {
 	bool overlay;
 	bool alpha_chan_en;
 	bool late_init;
+	u32 min_nbuf;
 	bool first_set_par;
 	dma_addr_t alpha_phy_addr0;
 	dma_addr_t alpha_phy_addr1;
@@ -868,7 +869,11 @@ static int mxcfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 
-	if (var->yres_virtual < var->yres)
+	if(mxc_fbi->min_nbuf){
+		if (var->yres_virtual < var->yres * mxc_fbi->min_nbuf)
+			var->yres_virtual = var->yres * mxc_fbi->min_nbuf;
+	}
+	else if (var->yres_virtual < var->yres)
 		var->yres_virtual = var->yres * 3;
 
 	if ((var->bits_per_pixel != 32) && (var->bits_per_pixel != 24) &&
@@ -2282,6 +2287,7 @@ static int mxcfb_get_of_property(struct platform_device *pdev,
 	int len;
 	u32 bpp, int_clk;
 	u32 late_init;
+	u32 min_nbuf=1;
 
 	err = of_property_read_string(np, "disp_dev", &disp_dev);
 	if (err < 0) {
@@ -2311,6 +2317,7 @@ static int mxcfb_get_of_property(struct platform_device *pdev,
 		dev_dbg(&pdev->dev, "get of property late_init fail\n");
 		return err;
 	}
+	of_property_read_u32(np, "min_nbuf", &min_nbuf);
 
 	if (!strncmp(pixfmt, "RGB24", 5))
 		plat_data->interface_pix_fmt = IPU_PIX_FMT_RGB24;
@@ -2346,6 +2353,7 @@ static int mxcfb_get_of_property(struct platform_device *pdev,
 	plat_data->default_bpp = bpp;
 	plat_data->int_clk = (bool)int_clk;
 	plat_data->late_init = (bool)late_init;
+	plat_data->min_nbuf = min_nbuf;
 	return err;
 }
 
@@ -2398,6 +2406,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 	mxcfbi = (struct mxcfb_info *)fbi->par;
 	mxcfbi->ipu_int_clk = plat_data->int_clk;
 	mxcfbi->late_init = plat_data->late_init;
+	mxcfbi->min_nbuf = plat_data->min_nbuf;
 	mxcfbi->first_set_par = true;
 	ret = mxcfb_dispdrv_init(pdev, fbi);
 	if (ret < 0)
