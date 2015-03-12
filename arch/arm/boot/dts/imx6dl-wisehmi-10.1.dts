@@ -3,6 +3,7 @@
 &mxcfb1 {
 	disp_dev = "lcd";
 	mode_str = "LQ101K5DZ01";
+	interface_pix_fmt = "BGR24";
 };
 
 &ldb {
