@@ -396,6 +396,7 @@ config CPU_V7
 	select CPU_HAS_ASID if MMU
 	select CPU_PABRT_V7
 	select CPU_TLB_V7 if MMU
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 
 config CPU_THUMBONLY
 	bool
