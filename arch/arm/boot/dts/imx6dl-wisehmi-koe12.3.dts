@@ -1,0 +1,14 @@
+#include "imx6dl-wisehmi.dts"
+
+&mxcfb1 {
+	mode_str = "KOE_TX31D200VM0BAA";
+};
+
+&ldb {
+	channel0_mode = "jeida";
+	status = "okay";
+};
+
+&lcd {
+	status = "disable";
+};
