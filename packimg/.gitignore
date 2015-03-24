@@ -1,0 +1,9 @@
+*.dtb
+*.bmp
+pack.img
+packimg
+mksplash
+zImage
+pImage
+*.cpio
+*.cpio.*
