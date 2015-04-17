@@ -1607,6 +1607,12 @@ config SUPPORT_INITROOT
         help
           Say Y here to support monitor the init-rootfs mount. It is useful for fastboot
 
+config UBOOT_SMP_BOOT
+	   bool "Enable Uboot SMP boot"
+	   depends on SUPPORT_INITROOT
+	   help
+		 This enables kernel to be aware of uboot's SMP boot function.
+
 #
 # Place an empty function call at each tracepoint site. Can be
 # dynamically changed for a probe function.

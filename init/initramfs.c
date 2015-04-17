@@ -469,6 +469,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 			}
 		} else
 			error("junk in compressed archive");
+
 		if (state != Reset)
 			error("junk in compressed archive");
 		this_header = saved_offset + my_inptr;
@@ -581,6 +582,9 @@ static void __init clean_rootfs(void)
 
 #ifdef CONFIG_SUPPORT_INITROOT
 #include <linux/async.h>
+#include <asm/io.h>
+#include <asm/cacheflush.h>
+
 static async_cookie_t populate_initrootfs_cookie;
 
 void __init wait_populate_initrootfs_done(void)
@@ -589,16 +593,45 @@ void __init wait_populate_initrootfs_done(void)
 		async_synchronize_cookie(populate_initrootfs_cookie);
 }
 
+u32 imx_get_cpu_arg(int cpu);
+void imx_set_cpu_arg(int cpu, u32 arg);
+void imx_enable_cpu(int cpu, bool enable);
+
 static void __init async_populate_initrootfs(void *data, async_cookie_t cookie)
 {
 	char* errmsg;
+#ifdef CONFIG_UBOOT_SMP_BOOT
+	int ret;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+
+	while ((ret = imx_get_cpu_arg(1)) == 0)
+		if (time_after(jiffies, timeout))
+			break;
+	imx_enable_cpu(1, false);
+	imx_set_cpu_arg(1, 0);
+
+	if (ret <= 0) {
+		printk(KERN_ERR "SMP load cpio fail %d\n", ret);
+		goto out;
+	}
+	else
+		printk(KERN_INFO "SMP load cpio success %x\n", ret);
+
+	//dmac_flush_range(initrd_start, initrd_end);
+
+	if (!cpu_online(1))
+		cpu_up(1);
+#endif
+
 	printk(KERN_INFO "Unpacking initramfs...\n");
-	errmsg = unpack_to_rootfs((char *)initrd_start,
-		initrd_end - initrd_start);
+	errmsg = unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start);
 	if (errmsg)
 		printk(KERN_EMERG "Initramfs unpacking failed: %s\n", errmsg);
+	else
+		printk(KERN_INFO "Unpacking initramfs done\n");
+
+out:
 	free_initrd();
-	printk(KERN_INFO "Unpacking initramfs done\n");
 }
 
 static int __init populate_initrootfs(void)

@@ -582,6 +582,8 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		3 << CCM_CCGR_OFFSET(6) |
 		3 << CCM_CCGR_OFFSET(4), base + 0x78);
 	writel_relaxed(1 << CCM_CCGR_OFFSET(0), base + 0x7c);
+
+#ifndef CONFIG_UBOOT_SMP_BOOT
 	writel_relaxed(0, base + 0x80);
 
 	/* Make sure PFDs are disabled at boot. */
@@ -592,6 +594,16 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	else
 		reg |= 0x80808080;
 	writel_relaxed(reg, anatop_base + 0x100);
+#else
+	// leave USDHC2 & USDHC3 gate open
+	writel_relaxed(0x000000f0, base + 0x80);
+
+	/* Make sure PFDs are disabled at boot. */
+	reg = readl_relaxed(anatop_base + 0x100);
+	/* Cannot disable pll2_pfd2_396M, as it is the source of USDHC */
+	reg |= 0x80008080;
+	writel_relaxed(reg, anatop_base + 0x100);
+#endif
 
 	/* Disable PLL3 PFDs. */
 	reg = readl_relaxed(anatop_base + 0xF0);
@@ -699,5 +711,14 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	WARN_ON(!base);
 	irq = irq_of_parse_and_map(np, 0);
 	mxc_timer_init(base, irq);
+
+#ifdef CONFIG_UBOOT_SMP_BOOT
+	ret = clk_prepare_enable(clk[usdhc2]);
+	if (ret)
+		printk(KERN_ERR "enable usdhc2 clk fail\n");
+	ret = clk_prepare_enable(clk[usdhc3]);
+	if (ret)
+		printk(KERN_ERR "enable usdhc3 clk fail\n");
+#endif
 }
 CLK_OF_DECLARE(imx6q, "fsl,imx6q-ccm", imx6q_clocks_init);

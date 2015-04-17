@@ -68,7 +68,7 @@
 			vsync-len = <10>;
 		};
 		SHARP_LQ123K1LG03 { /*sharp panel*/
-			clock-frequency = <53003000>;
+			clock-frequency = <53172000>;
 			hactive = <1280>;
 			vactive = <480>;
 			hback-porch = <268>;
