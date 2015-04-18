@@ -337,6 +337,10 @@ static int __init try_initroot(void)
 		free_reserved_area(phys_to_virt(uboot_spl_start), 
 						   phys_to_virt(uboot_spl_end), 
 						   0, "uboot-spl");
+
+		// bring up secodary CPU
+		if (cpu_possible(1) && !cpu_online(1))
+			cpu_up(1);
 	}
 #endif
 

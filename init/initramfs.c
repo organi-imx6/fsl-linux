@@ -604,6 +604,12 @@ static void __init async_populate_initrootfs(void *data, async_cookie_t cookie)
 	int ret;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
+	// don't do SMP boot when secondary CPU not present or used by Linux already
+	if (!cpu_possible(1) || cpu_online(1)) {
+		printk(KERN_WARNING "UBOOT_SMP_BOOT enabled but secondary CPU is in wrong state\n");
+		goto unpack;
+	}
+
 	while ((ret = imx_get_cpu_arg(1)) == 0)
 		if (time_after(jiffies, timeout))
 			break;
@@ -618,9 +624,7 @@ static void __init async_populate_initrootfs(void *data, async_cookie_t cookie)
 		printk(KERN_INFO "SMP load cpio success %x\n", ret);
 
 	//dmac_flush_range(initrd_start, initrd_end);
-
-	if (!cpu_online(1))
-		cpu_up(1);
+unpack:
 #endif
 
 	printk(KERN_INFO "Unpacking initramfs...\n");
