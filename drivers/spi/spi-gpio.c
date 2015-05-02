@@ -463,7 +463,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 		for (i = 0; i < SPI_N_CHIPSEL; i++)
 			spi_gpio->cs_gpios[i] =
-				of_get_named_gpio(np, "cs-gpios", i);
+				of_get_named_gpio(np, "cs-gpios", i)>=0?:SPI_GPIO_NO_CHIPSELECT;
 	}
 #endif
 
