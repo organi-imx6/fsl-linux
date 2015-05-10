@@ -65,6 +65,28 @@
 			regulator-boot-on;
 		};
 	};
+
+	psspi0 {
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&psspi0_pins_cfg>;
+		status = "okay";
+		gpio-sck = <&gpio2 18 0>;
+		gpio-mosi = <&gpio5 4 0>;
+		num-chipselects = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		/* clients */
+
+		psdev: psdev@0{
+			compatible = "altr,passive-serial";
+			reg = <0>;
+			spi-max-frequency = <100000>;
+			gpio-nstatus = <&gpio6 6 0>;
+			gpio-confdone = <&gpio2 17 0>;
+			gpio-nconfig = <&gpio2 16 0>;
+		};
+	};
 };
 
 &fec {
@@ -163,6 +185,18 @@
 				MX6QDL_PAD_EIM_D21__GPIO3_IO21  0x80000000	//gpio3.21 usb otg over current
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID	0x80000000	//usb otg id
 				MX6QDL_PAD_GPIO_8__GPIO1_IO08	0x80000000	//fpga interrupt
+			>;
+		};
+	};
+
+	psspi0_pins_cfg {
+		psspi0_pins_cfg: psspi0 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_A20__GPIO2_IO18	0x80000000	//gpio2.18 fpga ps dclk
+				MX6QDL_PAD_EIM_A24__GPIO5_IO04	0x80000000	//gpio5.4 fpga ps dat0
+				MX6QDL_PAD_EIM_A21__GPIO2_IO17	0x80000000	//gpio2.17 fpga ps config done
+				MX6QDL_PAD_EIM_A22__GPIO2_IO16	0x80000000	//gpio2.16 fpga ps nconfig
+				MX6QDL_PAD_EIM_A23__GPIO6_IO06	0x80000000	//gpio6.6 fpga ps nstatus
 			>;
 		};
 	};

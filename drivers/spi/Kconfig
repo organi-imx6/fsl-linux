@@ -189,6 +189,15 @@ config SPI_GPIO
 	  GPIO operations, you should be able to leverage that for better
 	  speed with a custom version of this driver; see the source code.
 
+config SPI_PASSIVE_SERIAL
+	tristate "GPIO-based bitbanging SPI Altera Passive Serial"
+	depends on GPIOLIB
+	select SPI_BITBANG
+	help
+	  This driver uses GPIOs to communicate by alteras passive serial
+	  protocol. It creates an character device, that can be used to
+	  simply cat RBF Firmware images into the FPGA.
+
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
 	depends on ARCH_MXC
