@@ -1,0 +1,5 @@
+*.dtb
+*.bmp
+pack.img
+packimg
+mksplash

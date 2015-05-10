@@ -1,0 +1,6 @@
+#include "imx6dl-rbctrl.dts"
+
+&mxcfb1 {
+	mode_str = "AUO_A070SN02";
+};
+
