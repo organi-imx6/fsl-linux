@@ -431,7 +431,8 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	spin_lock_init(&bitbang->lock);
 
 	if (!master->mode_bits)
-		master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
+		master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST
+			| bitbang->flags;
 
 	if (master->transfer || master->transfer_one_message)
 		return -EINVAL;
