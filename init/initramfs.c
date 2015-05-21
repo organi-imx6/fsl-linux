@@ -602,7 +602,7 @@ static void __init async_populate_initrootfs(void *data, async_cookie_t cookie)
 	char* errmsg;
 #ifdef CONFIG_UBOOT_SMP_BOOT
 	int ret;
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	unsigned long timeout = jiffies + msecs_to_jiffies(5000);
 
 	// don't do SMP boot when secondary CPU not present or used by Linux already
 	if (!cpu_possible(1) || cpu_online(1)) {
