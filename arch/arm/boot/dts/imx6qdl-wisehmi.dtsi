@@ -45,6 +45,17 @@
 	sec_disp_id = <1>;
 
 	display-timings { 
+		CHUNGHWA_CLAA088WA01XN { /*Chunghwa CLAA088WA01XN is 8.8” color TFT-LCD*/
+			clock-frequency = <45000000>;
+			hactive = <1280>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <73>;
+			vback-porch = <20>;
+			vfront-porch = <23>;
+			hsync-len = <20>;
+			vsync-len = <10>;
+		};
 		HITACHI_TX18D45VM2BAA {
 			clock-frequency = <32321000>;
 			hactive = <800>;
