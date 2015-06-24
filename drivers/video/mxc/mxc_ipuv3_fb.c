@@ -415,7 +415,8 @@ static bool mxcfb_need_to_set_par(struct fb_info *fbi)
 {
 	struct mxcfb_info *mxc_fbi = fbi->par;
 
-	if ((fbi->var.activate & FB_ACTIVATE_FORCE) &&
+	if (mxc_fbi->first_set_par && 
+		(fbi->var.activate & FB_ACTIVATE_FORCE) &&
 	    (fbi->var.activate & FB_ACTIVATE_MASK) == FB_ACTIVATE_NOW)
 		return true;
 
