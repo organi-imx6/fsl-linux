@@ -1,0 +1,37 @@
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-wisehmi.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Board";
+	compatible = "autorock,imx6dl-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
+
+	chosen {
+        bootargs = "root=/dev/mmcblk1p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280 initroot=10:none,initramfs,/startup/run";
+    };
+};
+
+&fec {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&usdhc2 {
+	status = "okay";
+};
+
+&usdhc3 {
+	status = "okay";
+};
