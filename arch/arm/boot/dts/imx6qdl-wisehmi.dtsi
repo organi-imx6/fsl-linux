@@ -12,6 +12,45 @@
 	};
 };
 
+&lcd {
+	display-timings {
+		TX26D25VM2BAA {
+			clock-frequency = <20000000>;
+			hactive = <800>;
+			vactive = <256>;
+			hback-porch = <80>;
+			hfront-porch = <160>;
+			vback-porch = <20>;
+			vfront-porch = <30>;
+			hsync-len = <16>;
+			vsync-len = <10>;
+		};
+		HSD070IDW1-G {
+			clock-frequency = <30000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <40>;
+			vback-porch = <13>;
+			vfront-porch = <29>;
+			hsync-len = <48>;
+			vsync-len = <3>;
+		};
+		LQ101K5DZ01 {
+			clock-frequency = <44240000>;
+			hactive = <1280>;
+			vactive = <424>;
+			hback-porch = <42>;
+			hfront-porch = <194>;
+			vback-porch = <15>;
+			vfront-porch = <35>;
+			hsync-len = <20>;
+			vsync-len = <8>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
 &iomuxc {
 	imx6qdl-wisehmi {
 		pinctrl_ipu1: ipu1grp {
