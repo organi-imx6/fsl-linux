@@ -281,6 +281,16 @@
 				MX6QDL_PAD_EIM_CS1__EIM_CS1_B	0xb0b1
 			>;
 		};
+		pinctrl_weim_cs2: weim_cs2grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT18__EIM_CS2_B	0xb0b1
+			>;
+		};
+		pinctrl_weim_cs3: weim_cs3grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT19__EIM_CS3_B	0xb0b1
+			>;
+		};
 		pinctrl_weim_nor: weim_norgrp-1 {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_OE__EIM_OE_B		0xb0b1
@@ -308,6 +318,8 @@
 				MX6QDL_PAD_EIM_DA14__EIM_AD14	0xb0b0
 				MX6QDL_PAD_EIM_DA15__EIM_AD15	0xb0b0
 				/* address */
+				MX6QDL_PAD_EIM_A19__EIM_ADDR19	0xb0b1
+				MX6QDL_PAD_EIM_A18__EIM_ADDR18	0xb0b1
 				MX6QDL_PAD_EIM_A17__EIM_ADDR17	0xb0b1
 				MX6QDL_PAD_EIM_A16__EIM_ADDR16	0xb0b1
 			>;
@@ -419,7 +431,7 @@
 
 &weim {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_weim_nor &pinctrl_weim_cs1 &pinctrl_weim_cs0>;
+	pinctrl-0 = <&pinctrl_weim_nor &pinctrl_weim_cs3 &pinctrl_weim_cs2 &pinctrl_weim_cs1 &pinctrl_weim_cs0>;
 	fsl,weim-cs-gpr = <&gpr>;
 	#address-cells = <2>;
 	#size-cells = <1>;
@@ -455,6 +467,24 @@
 	fram@1,0 {
 		compatible = "mtd-ram";
 		reg = <1 0 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c172000
+				0x00000000 0x1c3ca3ca 0x00000000>;
+	};
+	CS2ram@2,0 {
+		compatible = "mtd-ram";
+		reg = <2 0 0x200000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c172000
+				0x00000000 0x1c3ca3ca 0x00000000>;
+	};
+	CS3ram@3,0 {
+		compatible = "mtd-ram";
+		reg = <3 0 0x200000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
