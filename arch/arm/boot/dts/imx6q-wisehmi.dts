@@ -1,0 +1,9 @@
+/dts-v1/;
+
+#include "imx6q.dtsi"
+#include "imx6qdl-wisehmi-dev.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad/Dual Wise HMI Board";
+	compatible = "autorock,imx6q-wisehmi", "autorock,imx6qdl-wisehmi", "fsl,imx6q";
+};

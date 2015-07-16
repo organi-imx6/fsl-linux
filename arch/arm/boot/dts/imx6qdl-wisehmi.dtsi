@@ -12,6 +12,64 @@
 	};
 };
 
+&ldb {
+	lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <24>;
+		crtc = "ipu1-di0";
+		status = "okay";
+
+		display-timings {
+			SHARP_LQ123K1LG03: timing0 {
+				clock-frequency = <53172000>;
+				hactive = <1280>;
+				vactive = <480>;
+				hback-porch = <268>;
+				hfront-porch = <70>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				hsync-len = <70>;
+				vsync-len = <25>;
+			};
+			CHUNGHWA_CLAA088WA01XN: timing1 {
+				/* 8.8” color TFT-LCD */
+				clock-frequency = <45000000>;
+				hactive = <1280>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <73>;
+				vback-porch = <20>;
+				vfront-porch = <23>;
+				hsync-len = <20>;
+				vsync-len = <10>;
+			};
+			HITACHI_TX18D45VM2BAA: timing2 {
+				clock-frequency = <32321000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <100>;
+				hfront-porch = <100>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				hsync-len = <36>;
+				vsync-len = <20>;
+			};
+			KOE_TX31D200VM0BAA: timing3 {
+				/* need switch to JEIDA mode */
+				clock-frequency = <43200000>;
+				hactive = <1280>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <40>;
+				vback-porch = <20>;
+				vfront-porch = <30>;
+				hsync-len = <60>;
+				vsync-len = <10>;
+			};
+		};
+	};
+};
+
 &lcd {
 	display-timings {
 		TX26D25VM2BAA {

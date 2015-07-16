@@ -1,0 +1,55 @@
+#include "imx6qdl-wisehmi.dtsi"
+
+/ {
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/mmcblk1p2 rootfstype=ext4 rootwait rw console=ttymxc3,115200n8 lpj=7905280 initroot=10:none,initramfs,/startup/run quiet";
+	};
+
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB24";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+};
+
+&ldb {
+	status = "okay";
+
+	lvds-channel@0 {
+		display-timings {
+			native-mode = <&SHARP_LQ123K1LG03>;
+		};
+	};
+};
+
+&fec {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&usdhc2 {
+	status = "okay";
+};
+
+&usdhc3 {
+	status = "okay";
+};
