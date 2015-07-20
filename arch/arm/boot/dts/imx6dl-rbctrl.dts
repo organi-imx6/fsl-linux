@@ -39,28 +39,66 @@
 		late_init = <0>;
 		status = "okay";
 	};
+
+	regulators {
+		compatible = "simple-bus";
+		reg_usb_h1_vbus: usb_h1_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_h1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 0 0>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+
+		reg_usb_otg_vbus: usb_otg_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_otg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 22 0>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+	};
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_0__GPIO1_IO00 	0x1b0b0		//gpio1.0 usb host1 power
+				MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x80000000	//gpio3.22 usb otg power
+				MX6QDL_PAD_GPIO_3__GPIO1_IO03   0x80000000	//gpio1.3 usb host1 over current
+				MX6QDL_PAD_EIM_D21__GPIO3_IO21  0x80000000	//gpio3.21 usb otg over current
+				MX6QDL_PAD_GPIO_1__USB_OTG_ID	0x80000000	//usb otg id
+			>;
+		};
+	};
+
 	imx6qdl-wisehmi {
 		pinctrl_enet: enetgrp {
 			fsl,pins = <
 			    /* RMII */
-				MX6QDL_PAD_ENET_MDIO__ENET_MDIO       0x1b0b0
-				MX6QDL_PAD_ENET_MDC__ENET_MDC         0x1b0b0
-				MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN    0x1b0b0
-				MX6QDL_PAD_ENET_RX_ER__ENET_RX_ER     0x1b0b0
-				MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN     0x1b0b0
-				MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0   0x1b0b0
-				MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1   0x1b0b0
-				MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0   0x1b0b0
-				MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1   0x1b0b0
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO			0x1b0b0
+				MX6QDL_PAD_ENET_MDC__ENET_MDC			0x1b0b0
+				MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN		0x1b0b0
+				MX6QDL_PAD_ENET_RX_ER__ENET_RX_ER		0x1b0b0
+				MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN		0x1b0b0
+				MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0		0x1b0b0
+				MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1		0x1b0b0
+				MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0		0x1b0b0
+				MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1		0x1b0b0
 				/* reset */
-				MX6QDL_PAD_GPIO_4__GPIO1_IO04         0x80000000
+				MX6QDL_PAD_GPIO_2__GPIO1_IO02			0x80000000
 				/* interrupt */
-				MX6QDL_PAD_ENET_REF_CLK__GPIO1_IO23   0x80000000
+				MX6QDL_PAD_GPIO_9__GPIO1_IO09			0x80000000
 				/* reference clock */
-				MX6QDL_PAD_GPIO_16__ENET_REF_CLK      0x4001b0a8
+				MX6QDL_PAD_GPIO_16__ENET_REF_CLK		0x4001b0a8
 			>;
 		};
 
@@ -212,7 +250,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio1 4 0>;
+	phy-reset-gpios = <&gpio1 2 0>;
 	status = "okay";
 };
 
@@ -288,14 +326,23 @@
 };
 
 &usbh1 {
+	vbus-supply = <&reg_usb_h1_vbus>;
+	status = "okay";
+};
+
+&usbotg {
+	vbus-supply = <&reg_usb_otg_vbus>;
+	dr_mode = "host";
 	status = "okay";
 };
 
 &ldb {
+	status = "okay";
 	lvds-channel@0 {
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
 		crtc = "ipu1-di0";
+		primary;
 		status = "okay";
 
 		display-timings {
@@ -331,6 +378,5 @@
 	ext_ref = <1>;
 	mode = "sin0";
 	sec_ipu_id = <0>;
-	sec_disp_id = <1>;
-	status = "okay";*/
+	sec_disp_id = <1>;*/
 };
