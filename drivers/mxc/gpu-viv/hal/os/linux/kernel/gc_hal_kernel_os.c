@@ -1572,7 +1572,7 @@ gckOS_AllocateNonPagedMemory(
 #endif
             mdl->numPages * PAGE_SIZE,
             &mdl->dmaHandle,
-            GFP_KERNEL | gcdNOWARN);
+            GFP_KERNEL | gcdNOWARN| __GFP_NOCLEAN);
 #else
     size    = mdl->numPages * PAGE_SIZE;
     order   = get_order(size);
