@@ -19,7 +19,7 @@
 	};
 
 	chosen {
-		bootargs = "root=ubi0:rootfs rootfstype=ubifs ubi.mtd=ubifs rw console=ttymxc1,115200n8";
+		bootargs = "root=ubi0:rootfs rootfstype=ubifs ubi.mtd=ubifs rw console=ttymxc1,115200n8 splash=0x13000000,0x80000";
 //		bootargs = "console=ttymxc1,115200n8 root=/dev/nfs nfsroot=192.168.0.55:/data/samba/nfs/mx6/rbctrl-root ip=192.168.0.114:192.168.0.254:192.168.0.254:255.255.255.0:freescale:eth0:off init=/linuxrc";
     };
 
