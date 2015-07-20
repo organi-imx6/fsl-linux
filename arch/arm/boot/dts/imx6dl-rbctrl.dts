@@ -63,6 +63,14 @@
 			enable-active-high;
 			regulator-boot-on;
 		};
+
+		reg_3p3v: 3p3v {
+			compatible = "regulator-fixed";
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
 	};
 
 	psspi0 {
@@ -101,6 +109,10 @@
 				MX6QDL_PAD_EIM_D21__GPIO3_IO21  0x80000000	//gpio3.21 usb otg over current
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID	0x80000000	//usb otg id
 				MX6QDL_PAD_GPIO_8__GPIO1_IO08	0x80000000	//fpga interrupt
+				MX6QDL_PAD_DISP0_DAT0__GPIO4_IO21	0x80000000	//Exboard interrrupt LAN9221_0
+				MX6QDL_PAD_DISP0_DAT1__GPIO4_IO22	0x80000000	//Exboard interrrupt LAN9221_1
+				MX6QDL_PAD_DISP0_DAT2__GPIO4_IO23	0x80000000	//Exboard interrrupt MechaTL2
+				MX6QDL_PAD_DISP0_DAT3__GPIO4_IO24	0x80000000	//Exboard interrrupt MechaTL3
 			>;
 		};
 	};
@@ -473,15 +485,66 @@
 		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c172000
 				0x00000000 0x1c3ca3ca 0x00000000>;
 	};
-	CS2ram@2,0 {
-		compatible = "mtd-ram";
-		reg = <2 0 0x200000>;
+	lan9221_0@2,0 {
+		compatible = "smsc,lan9220", "smsc,lan9115";
+		reg = <2 0 0x20000>;
+		phy-mode = "mii";
+		interrupt-parent = <&gpio4>;
+		interrupts = <21 0x8>;
+		reg-io-width = <2>;
+
+		vdd33a-supply = <&reg_3p3v>;
+		vddvario-supply = <&reg_3p3v>;
+		smsc,irq-push-pull;
+		smsc,force-internal-phy;
+
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
-		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c172000
+		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
 				0x00000000 0x1c3ca3ca 0x00000000>;
-	};
+		};
+	lan9221_1@2,1 {
+		compatible = "smsc,lan9220", "smsc,lan9115";
+		reg = <2 0x20000 0x20000>;
+		phy-mode = "mii";
+		interrupt-parent = <&gpio4>;
+		interrupts = <22 0x8>;
+		reg-io-width = <2>;
+
+		vdd33a-supply = <&reg_3p3v>;
+		vddvario-supply = <&reg_3p3v>;
+		smsc,irq-push-pull;
+		smsc,force-internal-phy;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+				0x00000000 0x1c3ca3ca 0x00000000>;
+		};
+	jl098@2,2 {
+		compatible = "yaskawa,jl098";
+		reg = <2 0x40000 0x20000>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <23 0x8>;
+		reg-io-width = <2>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+				0x00000000 0x1c3ca3ca 0x00000000>;
+		};
+	mechatl3@2,3 {
+		compatible = "mtd-ram";
+		reg = <2 0x60000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+				0x00000000 0x1c3ca3ca 0x00000000>;
+		};
 	CS3ram@3,0 {
 		compatible = "mtd-ram";
 		reg = <3 0 0x200000>;
