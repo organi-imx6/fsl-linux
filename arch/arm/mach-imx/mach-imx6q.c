@@ -136,6 +136,98 @@ static int __init imx6q_flexcan_fixup_auto(void)
 	return 0;
 }
 
+static int wisehmi_flexcan_en_gpio[2] = {-1, -1};
+static int wisehmi_flexcan_stby_gpio[2] = {-1, -1};
+static int wisehmi_flexcan_en_gpio_active[2];
+static int wisehmi_flexcan_stby_gpio_active[2];
+
+static void imx6q_flexcan_switch_wisehmi(int channel, int enable)
+{
+	if (enable) {
+		if (wisehmi_flexcan_en_gpio[channel] >= 0)
+			gpio_set_value_cansleep(wisehmi_flexcan_en_gpio[channel], 
+									wisehmi_flexcan_en_gpio_active[channel]);
+
+		if (wisehmi_flexcan_stby_gpio[channel] >= 0)
+			gpio_set_value_cansleep(wisehmi_flexcan_stby_gpio[channel],
+									!wisehmi_flexcan_stby_gpio_active[channel]);
+	}
+	else {
+		if (wisehmi_flexcan_en_gpio[channel] >= 0)
+			gpio_set_value_cansleep(wisehmi_flexcan_en_gpio[channel], 
+									!wisehmi_flexcan_en_gpio_active[channel]);
+
+		if (wisehmi_flexcan_stby_gpio[channel] >= 0)
+			gpio_set_value_cansleep(wisehmi_flexcan_stby_gpio[channel],
+									wisehmi_flexcan_stby_gpio_active[channel]);
+	}
+}
+
+static void imx6q_flexcan0_switch_wisehmi(int enable)
+{
+	imx6q_flexcan_switch_wisehmi(0, enable);
+}
+
+static void imx6q_flexcan1_switch_wisehmi(int enable)
+{
+	imx6q_flexcan_switch_wisehmi(1, enable);
+}
+
+static void __init imx6q_flexcan_fixup_wisehmi(void)
+{
+	struct device_node *np;
+	int en_gpio, stby_gpio, err_gpio, i;
+	char name[32];
+	char *path[] = {
+		"/soc/aips-bus@02000000/can@02090000",
+		"/soc/aips-bus@02000000/can@02094000"
+	};
+
+	for (i = 0; i < 2; i++) {
+		enum of_gpio_flags flags;
+
+		np = of_find_node_by_path(path[i]);
+		if (!np)
+			continue;
+
+		en_gpio = of_get_named_gpio_flags(np, "trx-en-gpio", 0, &flags);
+		if (gpio_is_valid(en_gpio)) {
+			snprintf(name, sizeof(name), "flexcan%d-trx-en", i);
+			if (!gpio_request_one(en_gpio, GPIOF_DIR_OUT, name)) {
+				wisehmi_flexcan_en_gpio[i] = en_gpio;
+				if (flags == OF_GPIO_ACTIVE_LOW)
+					wisehmi_flexcan_en_gpio_active[i] = 0;
+				else
+					wisehmi_flexcan_en_gpio_active[i] = 1;
+			}
+		}
+
+		stby_gpio = of_get_named_gpio_flags(np, "trx-stby-gpio", 0, &flags);
+		if (gpio_is_valid(stby_gpio)) {
+			snprintf(name, sizeof(name), "flexcan%d-trx-stby", i);
+			if (!gpio_request_one(stby_gpio, GPIOF_DIR_OUT, name)) {
+				wisehmi_flexcan_stby_gpio[i] = stby_gpio;
+				if (flags == OF_GPIO_ACTIVE_LOW)
+					wisehmi_flexcan_stby_gpio_active[i] = 0;
+				else
+					wisehmi_flexcan_stby_gpio_active[i] = 1;
+			}
+		}
+
+		err_gpio = of_get_named_gpio_flags(np, "trx-nerr-gpio", 0, &flags);
+		if (gpio_is_valid(err_gpio)) {
+			snprintf(name, sizeof(name), "flexcan%d-trx-err", i);
+			// err gpio is currently not used by driver
+			if (gpio_request_one(err_gpio, GPIOF_DIR_IN, name))
+				printk(KERN_ERR "[wisehmi] flexcan trx err gpio %d request fail!\n", err_gpio);
+		}
+
+		if (wisehmi_flexcan_en_gpio[i] >= 0 || wisehmi_flexcan_stby_gpio[i] >= 0)
+			flexcan_pdata[i].transceiver_switch = 
+				i ? imx6q_flexcan1_switch_wisehmi : imx6q_flexcan0_switch_wisehmi;
+	}
+}
+
 /* For imx6q sabrelite board: set KSZ9021RN RGMII pad skew */
 static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 {
@@ -573,6 +665,9 @@ static void __init imx6q_init_late(void)
 	if (of_machine_is_compatible("fsl,imx6q-sabreauto")
 		|| of_machine_is_compatible("fsl,imx6dl-sabreauto"))
 		imx6q_flexcan_fixup_auto();
+
+	if (of_machine_is_compatible("autorock,imx6qdl-wisehmi"))
+		imx6q_flexcan_fixup_wisehmi();
 }
 
 static void __init imx6q_map_io(void)
