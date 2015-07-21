@@ -129,7 +129,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
 	void __iomem *base;
-	int i;
+	int i, ret;
 
 	clk[IMX6QDL_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clk[IMX6QDL_CLK_CKIL] = imx_obtain_fixed_clock("ckil", 0);
@@ -590,5 +590,14 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	imx6q_set_lpm(WAIT_CLOCKED);
 
 	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt"));
+
+#ifdef CONFIG_UBOOT_SMP_BOOT
+	ret = clk_prepare_enable(clk[IMX6QDL_CLK_USDHC2]);
+	if (ret)
+		printk(KERN_ERR "enable usdhc2 clk fail\n");
+	ret = clk_prepare_enable(clk[IMX6QDL_CLK_USDHC2]);
+	if (ret)
+		printk(KERN_ERR "enable usdhc3 clk fail\n");
+#endif
 }
 CLK_OF_DECLARE(imx6q, "fsl,imx6q-ccm", imx6q_clocks_init);

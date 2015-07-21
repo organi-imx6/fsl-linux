@@ -33,6 +33,8 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
 
+#include <linux/clk.h>
+
 #include "do_mounts.h"
 
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
@@ -207,6 +209,17 @@ static int __init wait_thread_cpu_time_below(pid_t pid, int percent, int timeout
 
 extern void do_deferred_initcalls(void);
 
+#ifdef CONFIG_UBOOT_SMP_BOOT
+static unsigned long uboot_spl_start = 0x17780000;
+static unsigned long uboot_spl_end   = 0x17800000;
+
+void __init early_init_dt_setup_uboot_spl_range(unsigned long start, unsigned long end)
+{
+	uboot_spl_start = start;
+	uboot_spl_end = end;
+}
+#endif
+
 static int __init try_initroot(void)
 {
 	struct initroot_info info;
@@ -306,6 +319,26 @@ static int __init try_initroot(void)
 
 		sys_close(realroot);
 	}
+
+#ifdef CONFIG_UBOOT_SMP_BOOT
+	{
+		struct clk *usdhc2, *usdhc3;
+		// free clocks enabled for UBOOT load initrd
+		usdhc2 = clk_get_sys(NULL, "usdhc2");
+		usdhc3 = clk_get_sys(NULL, "usdhc3");
+		if (IS_ERR(usdhc2) || IS_ERR(usdhc3))
+			printk(KERN_ERR "UBOOT SMP BOOT: get mmc clock fail\n");
+		else {
+			clk_disable_unprepare(usdhc2);
+			clk_disable_unprepare(usdhc3);
+		}
+
+		// free memory reserved for UBOOT SPL
+		free_reserved_area(phys_to_virt(uboot_spl_start), 
+						   phys_to_virt(uboot_spl_end), 
+						   0, "uboot-spl");
+	}
+#endif
 
 end:
 	do_deferred_initcalls();
