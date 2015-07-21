@@ -151,6 +151,8 @@ static int recover_sigchld(void)
 
 static int __init do_initroot(char *init_filename)
 {
+	int ret;
+	struct filename *fn;
 	static char *argv[2];
 	extern char * envp_init[];
 
@@ -168,9 +170,12 @@ static int __init do_initroot(char *init_filename)
 	sys_chroot(".");
 	devtmpfs_mount("dev");
 
-	return do_execve(init_filename, 
+	fn = getname_kernel(init_filename);
+	ret = do_execve(fn, 
 		(const char __user *const __user *)argv, 
 		(const char __user *const __user *)envp_init);
+	putname(fn);
+	return ret;
 }
 
 static int __init wait_thread_cpu_time_below(pid_t pid, int percent, int timeout_seconds)
@@ -328,7 +333,7 @@ __setup("initroot=", initroot_dev_setup);
 
 static int __init load_ramdisk(char *str)
 {
-	rd_doload = simple_strtol(str,NULL,0) & 3;
+	rd_doload = simple_strtol(str, NULL, 0) & 3;
 	return 1;
 }
 __setup("load_ramdisk=", load_ramdisk);
