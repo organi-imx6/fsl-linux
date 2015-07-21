@@ -265,7 +265,18 @@
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio1 4 0>;
-	local-mac-address = [00 04 9F 01 1B B9];
+	phy-handle = <&ethphy>;
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			interrupt-parent = <&gpio1>;
+			interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+			reg = <1>;
+		};
+	};
 };
 
 &gpmi {
