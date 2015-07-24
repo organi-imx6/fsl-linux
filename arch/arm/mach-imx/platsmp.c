@@ -69,8 +69,10 @@ static void __init imx_smp_init_cpus(void)
 	int i, ncores = scu_get_core_count(imx_scu_base);
 	u32 me = smp_processor_id();
 
+#ifndef CONFIG_UBOOT_SMP_BOOT
 	if (setup_max_cpus < ncores)
 		ncores = (setup_max_cpus) ? setup_max_cpus : 1;
+#endif
 
 	for (i = ncores; i < NR_CPUS; i++)
 		set_cpu_possible(i, false);

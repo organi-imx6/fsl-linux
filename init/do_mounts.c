@@ -153,8 +153,6 @@ static int recover_sigchld(void)
 
 static int __init do_initroot(char *init_filename)
 {
-	int ret;
-	struct filename *fn;
 	static char *argv[2];
 	extern char * envp_init[];
 
@@ -172,12 +170,9 @@ static int __init do_initroot(char *init_filename)
 	sys_chroot(".");
 	devtmpfs_mount("dev");
 
-	fn = getname_kernel(init_filename);
-	ret = do_execve(fn, 
+	return sys_execve(init_filename,
 		(const char __user *const __user *)argv, 
 		(const char __user *const __user *)envp_init);
-	putname(fn);
-	return ret;
 }
 
 static int __init wait_thread_cpu_time_below(pid_t pid, int percent, int timeout_seconds)
@@ -285,7 +280,6 @@ static int __init try_initroot(void)
 			sigisemptyset(&waitset);
 			sigaddset(&waitset, SIGUSR1);
 			sigaddset(&waitset, SIGCHLD);
-
 			for(;;){
 				ret = sys_rt_sigtimedwait(&waitset, NULL, &timeout, sizeof(sigset_t));
 				if (ret != -EINTR){// Interrupted by a signal other than SIGUSR1.
