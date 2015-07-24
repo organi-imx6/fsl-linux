@@ -715,7 +715,7 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_UBOOT_SMP_BOOT
-inline void early_init_dt_check_for_uboot_spl_range(unsigned long node)
+static void __init early_init_dt_check_for_uboot_spl_range(unsigned long node)
 {
 	unsigned long start, end, len;
 	__be32 *prop;
