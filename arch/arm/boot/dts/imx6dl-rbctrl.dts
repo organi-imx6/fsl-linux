@@ -123,7 +123,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_1>;
+	pinctrl-0 = <&pinctrl_uart1_2>;
 	status = "okay";
 };
 
@@ -209,6 +209,17 @@
 				MX6QDL_PAD_EIM_A21__GPIO2_IO17	0x80000000	//gpio2.17 fpga ps config done
 				MX6QDL_PAD_EIM_A22__GPIO2_IO16	0x80000000	//gpio2.16 fpga ps nconfig
 				MX6QDL_PAD_EIM_A23__GPIO6_IO06	0x80000000	//gpio6.6 fpga ps nstatus
+			>;
+		};
+	};
+
+	uart1 {
+		pinctrl_uart1_2: uart1grp-2 {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT10__UART1_TX_DATA 0x1b0b1
+				MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA 0x1b0b1
+				MX6QDL_PAD_EIM_D19__UART1_RTS_B 0x1b0b1
+				MX6QDL_PAD_EIM_D20__UART1_CTS_B 0x1b0b1
 			>;
 		};
 	};
