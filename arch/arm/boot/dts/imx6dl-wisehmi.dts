@@ -83,3 +83,8 @@
 &usbh1 {
 	status = "okay";
 };
+
+&usbotg {
+	dr_mode = "host";
+	status = "okay";
+};
