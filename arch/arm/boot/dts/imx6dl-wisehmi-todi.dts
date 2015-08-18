@@ -13,3 +13,7 @@
 &lcd {
 	status = "okay";
 };
+
+&uart3 {
+	status = "okay";
+};
