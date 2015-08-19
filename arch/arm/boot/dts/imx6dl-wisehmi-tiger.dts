@@ -4,13 +4,13 @@
 #include "imx6qdl-wisehmi-dev.dtsi"
 
 / {
-	model = "Freescale i.MX6 DualLite/Solo Wise HMI Todi Board";
-	compatible = "autorock,imx6dl-wisehmi-todi", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Tiger Board";
+	compatible = "autorock,imx6dl-wisehmi-tiger", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
 };
 
 &mxcfb1 {
 	disp_dev = "lcd";
-	mode_str = "LQ101K5DZ01";
+	mode_str = "HSD070IDW1-G";
 	interface_pix_fmt = "BGR24";
 };
 
@@ -22,7 +22,10 @@
 	status = "okay";
 };
 
-&uart3 {
+&i2c3 {
 	status = "okay";
 };
 
+&video0 {
+	status = "okay";
+};

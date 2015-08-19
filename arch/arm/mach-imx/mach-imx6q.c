@@ -436,6 +436,8 @@ static void __init imx6q_csi_mux_init(void)
 		else if (of_machine_is_compatible("fsl,imx6dl-sabresd") ||
 			 of_machine_is_compatible("fsl,imx6dl-sabreauto"))
 			regmap_update_bits(gpr, IOMUXC_GPR13, 0x3F, 0x0C);
+		else if (of_machine_is_compatible("autorock,imx6dl-wisehmi-tiger"))
+			regmap_update_bits(gpr, IOMUXC_GPR13, 0x38, 0x20);
 	} else {
 		pr_err("%s(): failed to find fsl,imx6q-iomux-gpr regmap\n",
 		       __func__);
