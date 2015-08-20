@@ -408,6 +408,18 @@ static void tw9990_get_std(v4l2_std_id *std)
 		tw9990_data.std_id = *std;
 		tw9990_data.sen.pix.width = video_fmts[video_idx].raw_width;
 		tw9990_data.sen.pix.height = video_fmts[video_idx].raw_height;
+		if (*std == V4L2_STD_NTSC) {
+			tw9990_write_reg(CROP_HI, 0x02);
+			tw9990_write_reg(VDELAY_LO, 0x12);
+			tw9990_write_reg(VACTIVE_LO, 0xf4);
+			tw9990_mask_set(VVBI, 0x10, 0x10);
+		}
+		else if (*std == V4L2_STD_PAL) {
+			tw9990_write_reg(CROP_HI, 0x12);
+			tw9990_write_reg(VDELAY_LO, 0x18);
+			tw9990_write_reg(VACTIVE_LO, 0x20);
+			tw9990_mask_set(VVBI, 0x10, 0x00);
+		}
 	}
 }
 
@@ -1120,9 +1132,6 @@ static int tw9990_probe(struct i2c_client *client,
 
 	tw9990_write_reg(OPFORM, 0xa2);
 	tw9990_write_reg(OUTCTR1, 0x01);
-	tw9990_write_reg(CROP_HI, 0x12);
-	tw9990_write_reg(VDELAY_LO, 0x18);
-	tw9990_write_reg(VACTIVE_LO, 0x20);
 	tw9990_write_reg(HACTIVE_LO, 0xd0);
 
 	/* This function attaches this structure to the /dev/video0 device.
