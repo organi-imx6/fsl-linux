@@ -977,16 +977,6 @@ static struct v4l2_int_device tw9990_int_device = {
  * I2C client and driver.
  ***********************************************************************/
 
-/*! TW9990 Reset function.
- *
- *  @return		None.
- */
-static void tw9990_hard_reset(void)
-{
-	dev_dbg(&tw9990_data.sen.i2c_client->dev,
-		"In tw9990:tw9990_hard_reset\n");
-}
-
 /*!
  * TW9990 I2C probe function.
  * Function set in i2c_driver struct.
@@ -1002,7 +992,7 @@ static int tw9990_probe(struct i2c_client *client,
 	int cid, rev;
 	int ret = 0;
 	enum of_gpio_flags flags;
-	int pdn_gpio = -1, pdn_active, rstb_gpio = -1, rstb_active;
+	int pdn_gpio = -1, pdn_active = 0, rstb_gpio = -1, rstb_active = 0;
 	struct pinctrl *pinctrl;
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
