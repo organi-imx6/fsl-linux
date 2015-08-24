@@ -326,6 +326,12 @@
 				MX6QDL_PAD_GPIO_17__GPIO7_IO12   0x80000000
 			>;
 		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x17059
+			>;
+		};
 	};
 };
 
@@ -432,4 +438,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2>;
 	trx-stby-gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+};
+
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	dr_mode = "otg";
 };

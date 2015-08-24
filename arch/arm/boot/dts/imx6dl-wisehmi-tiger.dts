@@ -29,3 +29,11 @@
 &video0 {
 	status = "okay";
 };
+
+&usbh1 {
+	status = "okay";
+};
+
+&usbotg {
+	status = "okay";
+};
