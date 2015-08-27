@@ -635,4 +635,3 @@ MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");
 MODULE_DESCRIPTION("Freescale MXS USB PHY driver");
 MODULE_LICENSE("GPL");
-MODULE_SOFTDEP("pre:ci_hdrc_imx");
