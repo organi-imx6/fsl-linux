@@ -69,6 +69,7 @@
 typedef struct fpga_pulse{
 	uint16_t	count[PULSE_CH_NUM];
 	uint16_t	period[PULSE_CH_NUM];
+	uint16_t	prdd[PULSE_CH_NUM];
 	uint16_t	dir;
 }fpga_pulse_t;
 
@@ -204,6 +205,7 @@ static inline void rbt_fpga_push_pulse(struct rbt_info *info,
 	int i;
 	uint16_t dir=0;
 	int32_t d;
+	uint32_t t;
 	for(i=0;i<info->frame_size;i++){
 		d = data[i];
 		if(d<0){
@@ -215,6 +217,9 @@ static inline void rbt_fpga_push_pulse(struct rbt_info *info,
 			pulse->period[i] = info->prd_cnt/d;
 		}
 		pulse->count[i] = d;
+		t = (((uint32_t)info->prd_cnt)<<15)/d - ((uint32_t)pulse->period[i]<<15);
+		if(t>=32768)	t = 32767;
+		pulse->prdd[i] = t;
 	}
 	pulse->dir = dir<<8;
 }
@@ -345,6 +350,7 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 			if(pulse->count[i]){
 				rbt_fpga_writew(info, pulse->count[i]-1, RBT_PnCNT_OFFSET(i));
 				rbt_fpga_writew(info, pulse->period[i]-1, RBT_PnPRD_OFFSET(i));
+				rbt_fpga_writew(info, pulse->prdd[i], RBT_PnPRDD_OFFSET(i));
 			}
 		}
 		rbt_fpga_writew(info, pulse->dir, RBT_PDDAT_OFFSET);
