@@ -34,7 +34,10 @@
 #define RBT_OUTPUT_OFFSET	(0x60)
 
 
-#define RBT_VER_NUM			0x1111
+#define RBT_VER_ID			0x11
+#define GET_RBT_VER_ID(x)	(((x)>>8)&0xff)
+#define GET_RBT_VER_MAJOR(x)	(((x)>>4)&0xf)
+#define GET_RBT_VER_MINOR(x)	((x)&0xf)
 #define RBT_SYS_TEN			(1<<2)
 #define RBT_SYS_IEN			(1<<1)
 #define RBT_SYS_OEN			(1<<0)
@@ -731,7 +734,7 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 	info->irq = err;
 	
 	v = rbt_fpga_readw(info, RBT_VER_OFFSET);
-	if(v!=RBT_VER_NUM){
+	if(GET_RBT_VER_ID(v)!=RBT_VER_ID){
 		err = -ENXIO;
 		printk("Can't find RBT FPGA Chip ret=0x%x!\n", v);
 		goto fail_no_rbt_fpga;
@@ -751,7 +754,8 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	dev_info(&pdev->dev, "RBT FPGA@0x%x irq(%d)\n", res->start, info->irq);
+	dev_info(&pdev->dev, "RBT FPGA@0x%x irq(%d), firmware version %d.%d\n",
+		res->start, info->irq, GET_RBT_VER_MAJOR(v), GET_RBT_VER_MINOR(v));
 
 	return 0;
 
