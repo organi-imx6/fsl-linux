@@ -211,15 +211,15 @@ static inline void rbt_fpga_push_pulse(struct rbt_info *info,
 		if(d<0){
 			d = -d;
 			dir |= (1<<i);
-			pulse->period[i] = info->prd_cnt/d;
-		}
-		else if(d>0){
-			pulse->period[i] = info->prd_cnt/d;
 		}
 		pulse->count[i] = d;
-		t = (((uint32_t)info->prd_cnt)<<15)/d - ((uint32_t)pulse->period[i]<<15);
-		if(t>=32768)	t = 32767;
-		pulse->prdd[i] = t;
+		if(d!=0){
+			pulse->period[i] = info->prd_cnt/d;
+			t = (((uint32_t)info->prd_cnt)<<15)/d - (((uint32_t)pulse->period[i])<<15);
+			if(t>=32768)
+				t = 32767;
+			pulse->prdd[i] = t;
+		}
 	}
 	pulse->dir = dir<<8;
 }
@@ -348,9 +348,9 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 		int i;
 		for(i=0;i<info->frame_size;i++){
 			if(pulse->count[i]){
+				rbt_fpga_writew(info, pulse->prdd[i]-1, RBT_PnPRDD_OFFSET(i));
 				rbt_fpga_writew(info, pulse->count[i]-1, RBT_PnCNT_OFFSET(i));
 				rbt_fpga_writew(info, pulse->period[i]-1, RBT_PnPRD_OFFSET(i));
-				rbt_fpga_writew(info, pulse->prdd[i], RBT_PnPRDD_OFFSET(i));
 			}
 		}
 		rbt_fpga_writew(info, pulse->dir, RBT_PDDAT_OFFSET);
