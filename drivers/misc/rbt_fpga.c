@@ -24,8 +24,13 @@
 #define RBT_TCNT_OFFSET		5
 #define RBT_PCTRL_OFFSET	8
 #define RBT_PDDAT_OFFSET	9
-#define RBT_CABSTA_OFFSET	10
-#define RBT_CZSTA_OFFSET	11
+#define RBT_PMODE_OFFSET	10
+#define RBT_CABSTA_OFFSET	11
+#define RBT_CZSTA_OFFSET	12
+#define RBT_CMODE_OFFSET	13
+#define RBT_SLCON_OFFSET	14
+#define RBT_UMUX_OFFSET		15
+
 #define RBT_PnPRD_OFFSET(n)		(0x10+4*(n))
 #define RBT_PnCNT_OFFSET(n)		(0x11+4*(n))
 #define RBT_PnPRDD_OFFSET(n)	(0x12+4*(n))
@@ -314,11 +319,78 @@ static ssize_t rbt_fpga_errordump(struct device *dev,
 		info->interrupt_lost, info->pulse_queue_break, info->max_break_time);
 }
 
+static const char *rbt_fpga_mode_str[]={"yaskawa", "wr-rs232", "wr-rs485", "em-rs485"};
+static ssize_t rbt_fpga_get_uartmode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+	uint32_t mode = rbt_fpga_readw(info, RBT_UMUX_OFFSET)&0xf;
+	int i,n=0;
+
+	if(mode >= ARRAY_SIZE(rbt_fpga_mode_str))
+		n += sprintf(buf+n, "uart mode error %d\n", mode);
+
+	for(i=0;i<ARRAY_SIZE(rbt_fpga_mode_str);i++){
+		n += sprintf(buf+n, "%c%s\n", mode==i?'*':' ', rbt_fpga_mode_str[i]);
+	}
+	return n;
+}
+
+static ssize_t rbt_fpga_set_uartmode(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+	uint16_t umux = rbt_fpga_readw(info, RBT_UMUX_OFFSET)&(~0xf);
+
+	int i;
+	for(i=0;i<ARRAY_SIZE(rbt_fpga_mode_str);i++){
+		if(strncmp(rbt_fpga_mode_str[i], buf, strlen(rbt_fpga_mode_str[i]))==0){
+			umux |= i;
+			rbt_fpga_writew(info, umux, RBT_UMUX_OFFSET);
+			return count;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t rbt_fpga_get_uartchannel(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+	int n = (rbt_fpga_readw(info, RBT_UMUX_OFFSET)>>4)&0xf;
+
+	return sprintf(buf, "%d\n", n);
+}
+
+static ssize_t rbt_fpga_set_uartchannel(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+	unsigned long val;
+	int err;
+
+	err = strict_strtol(buf, 0, &val);
+	if (err)
+		return -EINVAL;
+
+	val = (rbt_fpga_readw(info, RBT_UMUX_OFFSET)&(~0xf0))|((val&0xf)<<4);
+	rbt_fpga_writew(info, val, RBT_UMUX_OFFSET);
+
+	return count;
+}
+
 static DEVICE_ATTR(freq, S_IWUSR | S_IRUGO,rbt_fpga_get_freq, rbt_fpga_set_freq);
 static DEVICE_ATTR(address, S_IWUSR | S_IRUGO, rbt_fpga_get_address, rbt_fpga_set_address);
 static DEVICE_ATTR(data, S_IWUSR | S_IRUGO, rbt_fpga_get_data, rbt_fpga_set_data);
 static DEVICE_ATTR(regdump, S_IWUSR | S_IRUGO, rbt_fpga_regdump, NULL);
 static DEVICE_ATTR(error, S_IWUSR | S_IRUGO, rbt_fpga_errordump, NULL);
+static DEVICE_ATTR(uartmode, S_IWUSR | S_IRUGO,rbt_fpga_get_uartmode, rbt_fpga_set_uartmode);
+static DEVICE_ATTR(uartchannel, S_IWUSR | S_IRUGO,rbt_fpga_get_uartchannel, rbt_fpga_set_uartchannel);
 
 static struct attribute *rbt_fpga_attrs[] = {
 	&dev_attr_freq.attr,
@@ -326,6 +398,8 @@ static struct attribute *rbt_fpga_attrs[] = {
 	&dev_attr_data.attr,
 	&dev_attr_regdump.attr,
 	&dev_attr_error.attr,
+	&dev_attr_uartmode.attr,
+	&dev_attr_uartchannel.attr,
 	NULL
 };
 
@@ -477,6 +551,8 @@ static int __init rbt_fpga_init_pulse(struct rbt_info *info)
 		return ret;
 	}
 
+	//write 0x5555 for QEI mode
+	rbt_fpga_writew(info, 0x5555, RBT_CMODE_OFFSET);
 	return 0;
 }
 
