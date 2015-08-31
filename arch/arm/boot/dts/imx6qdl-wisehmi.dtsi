@@ -259,8 +259,8 @@
 
 		pinctrl_uart3: uart3grp {
 			fsl,pins = <
-				MX6QDL_PAD_EIM_D24__UART3_RX_DATA   0x1b0b1
-				MX6QDL_PAD_EIM_D25__UART3_TX_DATA   0x1b0b1
+				MX6QDL_PAD_EIM_D24__UART3_TX_DATA   0x1b0b1
+				MX6QDL_PAD_EIM_D25__UART3_RX_DATA   0x1b0b1
 				// bt_wake
 				MX6QDL_PAD_GPIO_5__GPIO1_IO05       0x80000000
 			>;
