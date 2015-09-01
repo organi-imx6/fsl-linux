@@ -23,9 +23,9 @@
 #include <sound/soc-dapm.h>
 #include <linux/pinctrl/consumer.h>
 #include "../codecs/wm8960.h"
+#include "imx-audmux.h"
 
 #define DAI_NAME_SIZE	32
-#define DEFAULT_MCLK_FREQ (12000000)
 
 struct imx_wm8960_data {
 	struct snd_soc_dai_link dai;
@@ -114,13 +114,6 @@ static int imx_hifi_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	data->clk_frequency = clk_get_rate(data->codec_clk);
-	if (data->clk_frequency != DEFAULT_MCLK_FREQ) {
-		ret = clk_set_rate(data->codec_clk, DEFAULT_MCLK_FREQ);
-		if (ret < 0)
-			dev_dbg(dev, "fail to set codec clock frequency.\n");
-		else
-			data->clk_frequency = DEFAULT_MCLK_FREQ;
-	}
 
 	/* Use MCLK to provide sysclk directly*/
 	sysclk = data->clk_frequency;
@@ -182,10 +175,85 @@ static int imx_hifi_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int imx_hifi_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct imx_wm8960_data *data = snd_soc_card_get_drvdata(card);
+	int ret;
+
+	if (!IS_ERR(data->codec_clk)) {
+		ret = clk_prepare_enable(data->codec_clk);
+		if (ret) {
+			dev_err(card->dev, "Failed to enable MCLK: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void imx_hifi_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct imx_wm8960_data *data = snd_soc_card_get_drvdata(card);
+
+	if (!IS_ERR(data->codec_clk))
+		clk_disable_unprepare(data->codec_clk);
+}
+
 static struct snd_soc_ops imx_hifi_ops = {
 	.hw_params = imx_hifi_hw_params,
 	.hw_free = imx_hifi_hw_free,
+	.startup   = imx_hifi_startup,
+	.shutdown  = imx_hifi_shutdown,
 };
+
+static int imx_wm8960_audmux_config(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	int int_port, ext_port;
+	int ret;
+
+	ret = of_property_read_u32(np, "mux-int-port", &int_port);
+	if (ret) {
+		dev_err(&pdev->dev, "mux-int-port missing or invalid\n");
+		return ret;
+	}
+	ret = of_property_read_u32(np, "mux-ext-port", &ext_port);
+	if (ret) {
+		dev_err(&pdev->dev, "mux-ext-port missing or invalid\n");
+		return ret;
+	}
+
+	/*
+	 * The port numbering in the hardware manual starts at 1, while
+	 * the audmux API expects it starts at 0.
+	 */
+	int_port--;
+	ext_port--;
+	ret = imx_audmux_v2_configure_port(int_port,
+			IMX_AUDMUX_V2_PTCR_SYN |
+			IMX_AUDMUX_V2_PTCR_TFSEL(ext_port) |
+			IMX_AUDMUX_V2_PTCR_TCSEL(ext_port) |
+			IMX_AUDMUX_V2_PTCR_TFSDIR |
+			IMX_AUDMUX_V2_PTCR_TCLKDIR,
+			IMX_AUDMUX_V2_PDCR_RXDSEL(ext_port));
+	if (ret) {
+		dev_err(&pdev->dev, "audmux internal port setup failed\n");
+		return ret;
+	}
+	ret = imx_audmux_v2_configure_port(ext_port,
+			IMX_AUDMUX_V2_PTCR_SYN,
+			IMX_AUDMUX_V2_PDCR_RXDSEL(int_port));
+	if (ret) {
+		dev_err(&pdev->dev, "audmux external port setup failed\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 static int imx_wm8960_probe(struct platform_device *pdev)
 {
@@ -210,6 +278,12 @@ static int imx_wm8960_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "phandle missing or invalid\n");
 		ret = -EINVAL;
 		goto fail;
+	}
+
+	if (strstr(cpu_np->name, "ssi")) {
+		ret = imx_wm8960_audmux_config(pdev);
+		if (ret)
+			goto fail;
 	}
 
 	cpu_pdev = of_find_device_by_node(cpu_np);

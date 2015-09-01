@@ -18,6 +18,27 @@
 		mclk_source = <0>;
 		status = "disabled";
 	};
+
+	sound {
+		compatible = "fsl,imx6-wisehmi-audio-wm8960",
+			     "fsl,imx-audio-wm8960";
+		model = "imx6-wisehmi-audio-wm8960";
+		cpu-dai = <&ssi1>;
+		audio-codec = <&codec>;
+		mux-int-port = <1>;
+		mux-ext-port = <3>;
+		codec-master;
+	};
+};
+
+&ssi1 {
+	fsl,mode = "i2s-slave";
+};
+
+&audmux {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
 };
 
 &ldb {
@@ -135,10 +156,26 @@
 		mclk = <24000000>;
 		mclk_source = <0>;
 	};
+
+	codec: wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		clock-names = "mclk";
+	};
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
 	imx6qdl-wisehmi {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_19__CCM_CLKO1    0x1b0b0
+			>;
+		};
+
 		pinctrl_ipu1_1: ipu1grp1 {
 			fsl,pins = <
 				MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x10
@@ -330,6 +367,15 @@
 		pinctrl_usbotg: usbotggrp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x17059
+			>;
+		};
+
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0
+				MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
+				MX6QDL_PAD_CSI0_DAT5__AUD3_TXD		0x110b0
+				MX6QDL_PAD_CSI0_DAT6__AUD3_TXFS		0x130b0
 			>;
 		};
 	};
