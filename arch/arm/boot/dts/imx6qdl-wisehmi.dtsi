@@ -46,6 +46,7 @@
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
 		crtc = "ipu1-di0";
+		primary;
 		status = "okay";
 
 		display-timings {
