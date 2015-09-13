@@ -174,6 +174,9 @@ static int psdev_start(struct psdev_data *psdev)
 		if (gpio_get_value(psdev->confd_gpio))
 			dev_err(dev, "CONFIG DONE is still high!\n");
 
+		/* arm the FPGA to await its new firmware */
+		gpio_set_value(psdev->nconfig_gpio, 1);
+
 		return ret;
 	}
 
@@ -239,7 +242,9 @@ static int psdev_open(struct inode *inode, struct file *filp)
 	} else
 		pr_debug("psdev: nothing for minor %d\n", iminor(inode));
 
-	psdev_start(psdev);
+	status = psdev_start(psdev);
+	if(status<0)
+		return status;
 
 	psdev->open = 1;
 
@@ -276,7 +281,7 @@ static int psdev_release(struct inode *inode, struct file *filp)
 	} while (time_before(jiffies, timeout));
 
 	if (status != 0) {
-		dev_err(dev, "FPGA does not acknowledge the programming initiation\n");
+		dev_err(dev, "FPGA does not acknowledge the programming initiation when release\n");
 		if (gpio_get_value(psdev->nstat_gpio) == 0)
 			dev_err(dev, "STATUS is still low!\n");
 		if (gpio_get_value(psdev->confd_gpio) == 0)
@@ -417,8 +422,13 @@ static int psdev_probe(struct spi_device *spi)
 
 	list_add(&psdev->device_entry, &device_list);
 
-	spi->mode |= SPI_LSB_FIRST | SPI_NO_CS;
-	spi_setup(spi);
+	spi->mode |= SPI_LSB_FIRST /*| SPI_NO_CS*/;
+	spi->max_speed_hz = 50000000;
+	status = spi_setup(spi);
+	if(status){
+		dev_info(&spi->dev, "spi setup failed!\n");
+		goto error;
+	}
 
 	status = psdev_probe_dt(psdev);
 	if (status)

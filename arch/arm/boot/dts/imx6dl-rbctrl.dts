@@ -89,7 +89,7 @@
 		psdev: psdev@0{
 			compatible = "altr,passive-serial";
 			reg = <0>;
-			spi-max-frequency = <100000>;
+			spi-max-frequency = <50000000>;
 			gpio-nstatus = <&gpio6 6 0>;
 			gpio-confdone = <&gpio2 17 0>;
 			gpio-nconfig = <&gpio2 16 0>;
