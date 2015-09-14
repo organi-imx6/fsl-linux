@@ -96,6 +96,7 @@ typedef struct fpga_encoder{
 }fpga_encoder_t;
 
 struct rbt_info {
+	struct device *dev;
 	void __iomem *iobase;
 	unsigned long iosize;
 	raw_spinlock_t lock;
@@ -123,8 +124,6 @@ struct rbt_info {
 };
 
 static const uint8_t excard_id2size_table[]={0xff, 6, 1, 4, 8, 4, 1};
-
-static struct rbt_info *rbt_info_p;
 
 static inline uint8_t rbt_fpga_readb(struct rbt_info *info,
 		unsigned int off)
@@ -481,7 +480,7 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 	pulse = GetPulseData(info);
 
 	if(info->frame_size>=PULSE_CH_NUM)
-		printk("frame size %d\n", info->frame_size);
+		dev_err(info->dev, "frame size %d\n", info->frame_size);
 
 #if 1
 	if(pulse){
@@ -497,7 +496,7 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 		rbt_fpga_writew(info, pulse->dir, RBT_PDDAT_OFFSET);
 		wake_up_interruptible(&info->wq);
 		if(info->break_time){
-			printk("pulse queue %d break %d tick\n", ++info->pulse_queue_break, info->break_time);
+			dev_info(info->dev, "pulse queue %d break %d tick\n", ++info->pulse_queue_break, info->break_time);
 			info->break_time = 0;
 		}
 	}
@@ -522,7 +521,7 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 	rbtsys = rbt_fpga_readw(info, RBT_SYS_OFFSET);
 	if(rbtsys&(1<<3)){
 		if(info->interrupt_lost<100 || (info->interrupt_lost%100)==0)
-			printk("interrput lost %d\n", info->interrupt_lost);
+			dev_info(info->dev, "interrput lost %d\n", info->interrupt_lost);
 		info->interrupt_lost++;
 		rbtsys &=~(1<<3);
 		rbt_fpga_writew(info, rbtsys, RBT_SYS_OFFSET);
@@ -534,14 +533,14 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 static ssize_t rbt_fpga_pulse_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct rbt_info *info = rbt_info_p;
+	struct rbt_info *info = file->private_data;
 	fpga_pulse_t *pulse;
 	int ret;
 	unsigned long flags;
 	char pulse_data[PULSE_CH_NUM*sizeof(int32_t)];
 
 	if(count>sizeof(pulse_data)){
-		printk("%s: frame size can't big than %d error\n", 
+		dev_err(info->dev, "%s: frame size can't big than %d error\n", 
 			__FUNCTION__, sizeof(pulse_data));
 		return -EINVAL;
 	}
@@ -562,7 +561,7 @@ static ssize_t rbt_fpga_pulse_write(struct file *file, const char __user *buf,
 	pulse = GetFreePulseBuffer(info);
 	if(pulse==NULL){
 		raw_spin_unlock_irqrestore(&info->lock,flags);
-		printk("wait out but buffer full\n");
+		dev_err(info->dev, "wait out but buffer full\n");
 		return count;
 	}
 
@@ -576,7 +575,7 @@ static ssize_t rbt_fpga_pulse_write(struct file *file, const char __user *buf,
 	}
 	else if(info->frame_size != count/sizeof(int32_t)){
 		raw_spin_unlock_irqrestore(&info->lock,flags);
-		printk("%s: frame size error\n", __FUNCTION__);
+		dev_err(info->dev, "%s: frame size error\n", __FUNCTION__);
 		return -EINVAL;
 	}
 	info->pulse_running=1;
@@ -587,8 +586,14 @@ static ssize_t rbt_fpga_pulse_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+#define DEFINE_MISCDEV_OPEN(name) static int name##_open(struct inode *inode, struct file *filp){\
+	filp->private_data = container_of(filp->private_data, struct rbt_info, name##_miscdev);	return 0;}
+
+DEFINE_MISCDEV_OPEN(pulse)
+
 static const struct file_operations pulse_fops = {
 	.owner		= THIS_MODULE,
+	.open		= pulse_open,
 	.llseek 	= noop_llseek,
 	.write		= rbt_fpga_pulse_write,
 };
@@ -599,7 +604,7 @@ static int __init rbt_fpga_init_pulse(struct rbt_info *info)
 
 	if(request_irq(info->irq, (irq_handler_t)rbt_fpga_irq_handler, 
 		IRQF_TRIGGER_LOW|IRQF_NO_THREAD|IRQF_DISABLED|IRQF_NOBALANCING|IRQF_NO_SOFTIRQ_CALL, DEVICE_NAME, info)<0){
-		printk("RBT FPGA request irq %d failed!\n", info->irq);
+		dev_err(info->dev, "RBT FPGA request irq %d failed!\n", info->irq);
 		return -ENXIO;
 	}
 
@@ -612,7 +617,7 @@ static int __init rbt_fpga_init_pulse(struct rbt_info *info)
 
 	ret = misc_register(&info->pulse_miscdev);
 	if(ret<0){
-		printk("Failed to register fpga pulse device\n");
+		dev_err(info->dev, "Failed to register fpga pulse device\n");
 		free_irq(info->irq, info);
 		return ret;
 	}
@@ -627,7 +632,7 @@ static int __exit rbt_fpga_remove_pulse(struct rbt_info *info)
 	int ret;
 	ret = misc_deregister(&info->pulse_miscdev);
 	if(ret<0){
-		printk("Failed to deregister fpga pulse device\n");
+		dev_err(info->dev, "Failed to deregister fpga pulse device\n");
 		return ret;
 	}
 
@@ -641,9 +646,7 @@ static int __exit rbt_fpga_remove_pulse(struct rbt_info *info)
 static ssize_t rbt_fpga_io_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
 {
-	struct rbt_info *info = rbt_info_p;/*container_of(file->private_data,
-					     struct rbt_info, io_miscdev);*/
-
+	struct rbt_info *info = file->private_data;
 	int i;
 	uint16_t tbuf[IO_NUM_16BYTE];
 
@@ -666,8 +669,7 @@ static ssize_t rbt_fpga_io_write(struct file *file, const char __user *buf,
 	 * filp->private_data field. We use this to find our private
 	 * data and then overwrite it with our own private structure.
 	 */
-	struct rbt_info *info = rbt_info_p;/*container_of(file->private_data,
-					     struct rbt_info, io_miscdev);*/
+	struct rbt_info *info = file->private_data;
 	int i;
 	uint16_t tbuf[IO_NUM_16BYTE];
 
@@ -681,8 +683,11 @@ static ssize_t rbt_fpga_io_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+DEFINE_MISCDEV_OPEN(io)
+
 static const struct file_operations io_fops = {
 	.owner		= THIS_MODULE,
+	.open		= io_open,
 	.llseek 	= noop_llseek,
 	.read		= rbt_fpga_io_read,
 	.write		= rbt_fpga_io_write,
@@ -731,8 +736,7 @@ static const offset_table_t offset_table[]={
 static ssize_t rbt_axis_io_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
 {
-	struct rbt_info *info = rbt_info_p;/*container_of(file->private_data,
-					     struct rbt_info, io_miscdev);*/
+	struct rbt_info *info = file->private_data;
 	uint16_t v;
 	unsigned int wordoff, bitoff;
 
@@ -752,8 +756,7 @@ static ssize_t rbt_axis_io_read(struct file *file,
 static ssize_t rbt_axis_io_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct rbt_info *info = rbt_info_p;/*container_of(file->private_data,
-					     struct rbt_info, io_miscdev);*/
+	struct rbt_info *info = file->private_data;
 	uint16_t v, t;
 	unsigned int wordoff, bitoff;
 
@@ -775,8 +778,11 @@ static ssize_t rbt_axis_io_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+DEFINE_MISCDEV_OPEN(axis_io)
+
 static const struct file_operations axis_io_fops = {
 	.owner		= THIS_MODULE,
+	.open		= axis_io_open,
 	.llseek 	= default_llseek,
 	.read		= rbt_axis_io_read,
 	.write		= rbt_axis_io_write,
@@ -818,7 +824,7 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	
 	memset_io(info->iobase+(RBT_OUTPUT_OFFSET<<1), 0xff, 32);
 	msleep(10);
-	printk("RBT FPGA enable IO\n");
+	dev_info(info->dev, "RBT FPGA enable IO\n");
 	rbt_fpga_writew(info, val|RBT_SYS_OEN, RBT_SYS_OFFSET);
 
 	/* Setup the miscdevice */
@@ -832,13 +838,13 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	
 	ret = misc_register(&info->io_miscdev);
 	if(ret<0){
-		printk("Failed to register fpga io device\n");
+		dev_err(info->dev, "Failed to register fpga io device\n");
 		return ret;
 	}
 
 	ret = misc_register(&info->axis_io_miscdev);
 	if(ret<0){
-		printk("Failed to register fpga axis io device\n");
+		dev_err(info->dev, "Failed to register fpga axis io device\n");
 		return ret;
 	}
 
@@ -852,12 +858,12 @@ static int __exit rbt_fpga_remove_io(struct rbt_info *info)
 	int ret;
 	ret = misc_deregister(&info->io_miscdev);
 	if(ret<0){
-		printk("Failed to deregister fpga io device\n");
+		dev_err(info->dev, "Failed to deregister fpga io device\n");
 		return ret;
 	}
 	ret = misc_deregister(&info->axis_io_miscdev);
 	if(ret<0){
-		printk("Failed to deregister fpga axis io device\n");
+		dev_err(info->dev, "Failed to deregister fpga axis io device\n");
 		return ret;
 	}
 
@@ -867,7 +873,7 @@ static int __exit rbt_fpga_remove_io(struct rbt_info *info)
 static ssize_t rbt_fpga_encoder_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
 {
-	struct rbt_info *info = rbt_info_p;
+	struct rbt_info *info = file->private_data;
 	unsigned long flags;
 	fpga_encoder_t v;
 	unsigned int i, end;
@@ -906,7 +912,7 @@ static ssize_t rbt_fpga_encoder_read(struct file *file,
 static ssize_t rbt_fpga_encoder_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct rbt_info *info = rbt_info_p;
+	struct rbt_info *info = file->private_data;
 	fpga_encoder_t v;
 	unsigned long flags;
 	unsigned int i, end;
@@ -931,8 +937,11 @@ static ssize_t rbt_fpga_encoder_write(struct file *file, const char __user *buf,
 	return count;
 }*/
 
+DEFINE_MISCDEV_OPEN(encoder)
+
 static const struct file_operations encoder_fops = {
 	.owner		= THIS_MODULE,
+	.open		= encoder_open,
 	.llseek 	= default_llseek,
 	.read		= rbt_fpga_encoder_read,
 //	.write		= rbt_fpga_encoder_write,
@@ -948,7 +957,7 @@ static int __init rbt_fpga_init_encoder(struct rbt_info *info)
 
 	ret = misc_register(&info->encoder_miscdev);
 	if(ret<0){
-		printk("Failed to register fpga encoder device\n");
+		dev_err(info->dev, "Failed to register fpga encoder device\n");
 		return ret;
 	}
 	
@@ -960,7 +969,7 @@ static int __exit rbt_fpga_remove_encoder(struct rbt_info *info)
 	int ret;
 	ret = misc_deregister(&info->encoder_miscdev);
 	if(ret<0){
-		printk("Failed to deregister fpga encoder device\n");
+		dev_err(info->dev, "Failed to deregister fpga encoder device\n");
 		return ret;
 	}
 
@@ -979,7 +988,7 @@ static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 
 		*id=v;
 		if(GET_EXCARDID_ID(v)>=ARRAY_SIZE(excard_id2size_table)){
-			printk("unknown card id 0x%x\n", v);
+			dev_err(info->dev, "unknown card id 0x%x\n", v);
 			off++;
 			continue;
 		}
@@ -1001,6 +1010,7 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&info->lock);
 	init_waitqueue_head(&info->wq);
 	info->frame_size=0;
+	info->dev=&pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -1029,7 +1039,7 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 	v = rbt_fpga_readw(info, RBT_VER_OFFSET);
 	if(GET_RBT_VER_ID(v)!=RBT_VER_ID){
 		err = -ENXIO;
-		printk("Can't find RBT FPGA Chip ret=0x%x!\n", v);
+		dev_err(info->dev, "Can't find RBT FPGA Chip ret=0x%x!\n", v);
 		goto fail_no_rbt_fpga;
 	}
 
@@ -1046,8 +1056,6 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 	err = rbt_fpga_init_encoder(info);
 	if(err<0)
 		goto fail_no_rbt_fpga;
-
-	rbt_info_p = info;
 
 	err = sysfs_create_group(&pdev->dev.kobj, &rbt_fpga_sysfs_files);
 	if (err)
