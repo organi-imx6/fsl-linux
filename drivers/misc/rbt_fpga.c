@@ -50,7 +50,11 @@
 #define RBT_SYS_IEN			(1<<1)
 #define RBT_SYS_OEN			(1<<0)
 
+#define GET_EXCARDID_ID(x)	(((x)>>4)&0xf)
+#define GET_EXCARDID_VER(x)	((x)&0xf)
+
 #define PULSE_CH_NUM		8
+#define MAX_EXCARD_NUM		8
 #define RBT_CLK				(135000000/4)
 
 #define PULSE_BUFFER_SIZE	4
@@ -92,7 +96,7 @@ typedef struct fpga_encoder{
 }fpga_encoder_t;
 
 struct rbt_info {
-	uint16_t __iomem *iobase;
+	void __iomem *iobase;
 	unsigned long iosize;
 	raw_spinlock_t lock;
 	fpga_pulse_t pulse[PULSE_BUFFER_SIZE];
@@ -105,6 +109,7 @@ struct rbt_info {
 	int head;
 	int tail;
 	fpga_encoder_t encoder[PULSE_CH_NUM];
+	u8 excard_id[MAX_EXCARD_NUM];
 
 	unsigned int irq;
 
@@ -117,18 +122,32 @@ struct rbt_info {
 	struct miscdevice encoder_miscdev;
 };
 
+static const uint8_t excard_id2size_table[]={0xff, 6, 1, 4, 8, 4, 1};
+
 static struct rbt_info *rbt_info_p;
+
+static inline uint8_t rbt_fpga_readb(struct rbt_info *info,
+		unsigned int off)
+{
+	return __raw_readb(info->iobase + off);
+}
+
+static inline void rbt_fpga_writeb(struct rbt_info *info,
+		uint8_t val, unsigned int off)
+{
+	__raw_writeb(val, info->iobase + off);
+}
 
 static inline void rbt_fpga_writew(struct rbt_info *info,
 		uint16_t val, unsigned int off)
 {
-	__raw_writew(val, info->iobase + off);
+	__raw_writew(val, info->iobase + (off<<1));
 }
 
 static inline uint16_t rbt_fpga_readw(struct rbt_info *info,
 		unsigned int off)
 {
-	return __raw_readw(info->iobase + off);
+	return __raw_readw(info->iobase + (off<<1));
 }
 
 inline fpga_pulse_t* GetFreePulseBuffer(struct rbt_info *info)
@@ -397,6 +416,16 @@ static ssize_t rbt_fpga_set_uartchannel(struct device *dev,
 	return count;
 }
 
+static ssize_t rbt_fpga_get_excardid(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+
+	memcpy(buf, info->excard_id, MAX_EXCARD_NUM);
+	return MAX_EXCARD_NUM;
+}
+
 static DEVICE_ATTR(freq, S_IWUSR | S_IRUGO,rbt_fpga_get_freq, rbt_fpga_set_freq);
 static DEVICE_ATTR(address, S_IWUSR | S_IRUGO, rbt_fpga_get_address, rbt_fpga_set_address);
 static DEVICE_ATTR(data, S_IWUSR | S_IRUGO, rbt_fpga_get_data, rbt_fpga_set_data);
@@ -404,6 +433,7 @@ static DEVICE_ATTR(regdump, S_IWUSR | S_IRUGO, rbt_fpga_regdump, NULL);
 static DEVICE_ATTR(error, S_IWUSR | S_IRUGO, rbt_fpga_errordump, NULL);
 static DEVICE_ATTR(uartmode, S_IWUSR | S_IRUGO,rbt_fpga_get_uartmode, rbt_fpga_set_uartmode);
 static DEVICE_ATTR(uartchannel, S_IWUSR | S_IRUGO,rbt_fpga_get_uartchannel, rbt_fpga_set_uartchannel);
+static DEVICE_ATTR(excardid, S_IWUSR | S_IRUGO,rbt_fpga_get_excardid, NULL);
 
 static struct attribute *rbt_fpga_attrs[] = {
 	&dev_attr_freq.attr,
@@ -413,6 +443,7 @@ static struct attribute *rbt_fpga_attrs[] = {
 	&dev_attr_error.attr,
 	&dev_attr_uartmode.attr,
 	&dev_attr_uartchannel.attr,
+	&dev_attr_excardid.attr,
 	NULL
 };
 
@@ -785,7 +816,7 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	uint16_t val = rbt_fpga_readw(info, RBT_SYS_OFFSET);
 	int ret;
 	
-	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, 32);
+	memset_io(info->iobase+(RBT_OUTPUT_OFFSET<<1), 0xff, 32);
 	msleep(10);
 	printk("RBT FPGA enable IO\n");
 	rbt_fpga_writew(info, val|RBT_SYS_OEN, RBT_SYS_OFFSET);
@@ -832,7 +863,6 @@ static int __exit rbt_fpga_remove_io(struct rbt_info *info)
 
 	return 0;
 }
-
 
 static ssize_t rbt_fpga_encoder_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
@@ -937,6 +967,26 @@ static int __exit rbt_fpga_remove_encoder(struct rbt_info *info)
 	return 0;
 }
 
+static void __init rbt_fpga_get_cardid(struct rbt_info *info)
+{
+	unsigned int off;
+	uint8_t v;
+	uint8_t *id = info->excard_id;
+	for(off=RBT_INPUT_OFFSET; off<RBT_OUTPUT_OFFSET;id++){
+		v = rbt_fpga_readb(info,off);
+		if(v==0xff || v==0|| v==0xcc)	//to do??
+			break;
+
+		*id=v;
+		if(GET_EXCARDID_ID(v)>=ARRAY_SIZE(excard_id2size_table)){
+			printk("unknown card id 0x%x\n", v);
+			off++;
+			continue;
+		}
+		off+=excard_id2size_table[GET_EXCARDID_ID(v)];
+	}
+}
+
 static int __init rbt_fpga_probe(struct platform_device *pdev)
 {
 	struct rbt_info *info;
@@ -982,6 +1032,8 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 		printk("Can't find RBT FPGA Chip ret=0x%x!\n", v);
 		goto fail_no_rbt_fpga;
 	}
+
+	rbt_fpga_get_cardid(info);
 
 	err = rbt_fpga_init_pulse(info);
 	if(err<0)
