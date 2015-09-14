@@ -35,6 +35,9 @@
 #define RBT_PnCNT_OFFSET(n)		(0x11+4*(n))
 #define RBT_PnPRDD_OFFSET(n)	(0x12+4*(n))
 #define RBT_PnACC_OFFSET(n)		(0x13+4*(n))
+#define RBT_CnDAT_OFFSET(n)		(0x30+2*(n))
+#define RBT_CnZDL_OFFSET(n)		(0x31+2*(n))
+
 #define RBT_INPUT_OFFSET	(0x40)
 #define RBT_OUTPUT_OFFSET	(0x60)
 
@@ -81,6 +84,13 @@ typedef struct fpga_pulse{
 	uint16_t	dir;
 }fpga_pulse_t;
 
+typedef struct fpga_encoder{
+	uint16_t	low16;
+	uint16_t	high16;
+	uint16_t	z_low16;
+	uint16_t	z_high16;
+}fpga_encoder_t;
+
 struct rbt_info {
 	uint16_t __iomem *iobase;
 	unsigned long iosize;
@@ -94,6 +104,8 @@ struct rbt_info {
 	wait_queue_head_t wq;
 	int head;
 	int tail;
+	fpga_encoder_t encoder[PULSE_CH_NUM];
+
 	unsigned int irq;
 
 	unsigned int offset;
@@ -102,6 +114,7 @@ struct rbt_info {
 	struct miscdevice io_miscdev;
 	struct miscdevice axis_io_miscdev;
 	struct miscdevice pulse_miscdev;
+	struct miscdevice encoder_miscdev;
 };
 
 static struct rbt_info *rbt_info_p;
@@ -407,6 +420,26 @@ static const struct attribute_group rbt_fpga_sysfs_files = {
 	.attrs	= rbt_fpga_attrs,
 };
 
+static void rbt_fpga_sync_encoder(struct rbt_info *info)
+{
+	//must in spin lock
+	static unsigned int index=0;
+	uint16_t e, diff, last=info->encoder[index].low16;
+
+	e = rbt_fpga_readw(info, RBT_CnDAT_OFFSET(index));
+	diff = e-last;
+	if(diff<32768 && e<last){
+		info->encoder[index].high16++;
+	}
+	else if(diff>=32768 && e>last){
+		info->encoder[index].high16--;
+	}
+
+	index++;
+	if(index>=PULSE_CH_NUM)
+		index=0;
+}
+
 static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 {
 	unsigned long flags;
@@ -450,6 +483,8 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 	rbt_fpga_writew(info, 0, RBT_PDDAT_OFFSET);
 	wake_up_interruptible(&info->wq);
 #endif
+	rbt_fpga_sync_encoder(info);
+
 	raw_spin_unlock_irqrestore(&info->lock,flags);
 	
 	rbt_fpga_writew(info, 0x1, RBT_INT_OFFSET);
@@ -751,8 +786,6 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	info->axis_io_miscdev.name = "axisio";
 	info->axis_io_miscdev.fops = &axis_io_fops;
 	
-	rbt_info_p = info;
-	
 	ret = misc_register(&info->io_miscdev);
 	if(ret<0){
 		printk("Failed to register fpga io device\n");
@@ -766,6 +799,97 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	}
 
 	//rbt_fpga_test_io(info);
+	
+	return 0;
+}
+
+static ssize_t rbt_fpga_encoder_read(struct file *file, 
+	char __user *buf, size_t count, loff_t *ppos)
+{
+	struct rbt_info *info = rbt_info_p;
+	unsigned long flags;
+	fpga_encoder_t v;
+	unsigned int i, end;
+	uint16_t diff;
+
+	end = (*ppos+count)/sizeof(fpga_encoder_t);
+	if((count%sizeof(fpga_encoder_t))!=0 || 
+		(*ppos%sizeof(fpga_encoder_t))!=0 || end > PULSE_CH_NUM)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&info->lock,flags);
+
+	for(i = *ppos/sizeof(fpga_encoder_t);i<end;i++){
+		v.low16=rbt_fpga_readw(info, RBT_CnDAT_OFFSET(i));
+		v.z_low16=rbt_fpga_readw(info, RBT_CnZDL_OFFSET(i));
+		v.high16=info->encoder[i].high16;
+		diff = v.low16 - v.z_low16;
+		if(diff<32768 && v.low16<v.z_low16)
+			v.z_high16=v.high16-1;
+		else if(diff>=32768 && v.low16>v.z_low16)
+			v.z_high16=v.high16+1;
+		else
+			v.z_high16=v.high16;
+
+		copy_to_user(buf, &v, sizeof(v));
+		buf+=sizeof(fpga_encoder_t);
+	}
+
+	raw_spin_unlock_irqrestore(&info->lock,flags);
+	*ppos+=count;
+
+	return count;
+}
+
+/*
+static ssize_t rbt_fpga_encoder_write(struct file *file, const char __user *buf,
+			  size_t count, loff_t *ppos)
+{
+	struct rbt_info *info = rbt_info_p;
+	fpga_encoder_t v;
+	unsigned long flags;
+	unsigned int i, end;
+
+	end = (*ppos+count)/sizeof(fpga_encoder_t);
+	if((count%sizeof(fpga_encoder_t))!=0 || 
+		(*ppos%sizeof(fpga_encoder_t))!=0 || end >= PULSE_CH_NUM)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&info->lock,flags);
+
+	for(i = *ppos/sizeof(fpga_encoder_t);i<end;i++){
+		copy_from_user(&v, buf, sizeof(v));
+		buf+=sizeof(fpga_encoder_t);
+
+		info->encoder[i].high16 = v.high16;
+		info->encoder[i].z_high16 = v.z_high16;
+		rbt_fpga_writew(info, v.low16, RBT_CnDAT_OFFSET(i));
+	}
+	raw_spin_unlock_irqrestore(&info->lock,flags);
+
+	return count;
+}*/
+
+static const struct file_operations encoder_fops = {
+	.owner		= THIS_MODULE,
+	.llseek 	= default_llseek,
+	.read		= rbt_fpga_encoder_read,
+//	.write		= rbt_fpga_encoder_write,
+};
+static int __init rbt_fpga_init_encoder(struct rbt_info *info)
+{
+	int ret;
+
+	/* Setup the miscdevice */
+	info->encoder_miscdev.minor = MISC_DYNAMIC_MINOR;
+	info->encoder_miscdev.name = "encoder";
+	info->encoder_miscdev.fops = &encoder_fops;
+
+	ret = misc_register(&info->encoder_miscdev);
+	if(ret<0){
+		printk("Failed to register fpga encoder device\n");
+		return ret;
+	}
 	
 	return 0;
 }
@@ -823,6 +947,12 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 	err = rbt_fpga_init_io(info);
 	if(err<0)
 		goto fail_no_rbt_fpga;
+
+	err = rbt_fpga_init_encoder(info);
+	if(err<0)
+		goto fail_no_rbt_fpga;
+
+	rbt_info_p = info;
 
 	err = sysfs_create_group(&pdev->dev.kobj, &rbt_fpga_sysfs_files);
 	if (err)
