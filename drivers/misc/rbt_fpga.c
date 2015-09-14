@@ -581,7 +581,7 @@ static int __init rbt_fpga_init_pulse(struct rbt_info *info)
 
 	ret = misc_register(&info->pulse_miscdev);
 	if(ret<0){
-		printk("Failed to register fpga io device\n");
+		printk("Failed to register fpga pulse device\n");
 		free_irq(info->irq, info);
 		return ret;
 	}
@@ -590,6 +590,19 @@ static int __init rbt_fpga_init_pulse(struct rbt_info *info)
 	rbt_fpga_writew(info, 0x5555, RBT_CMODE_OFFSET);
 	return 0;
 }
+
+static int __exit rbt_fpga_remove_pulse(struct rbt_info *info)
+{
+	int ret;
+	ret = misc_deregister(&info->pulse_miscdev);
+	if(ret<0){
+		printk("Failed to deregister fpga pulse device\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 
 #define IO_NUM_16BYTE	3	//16
 #define FPGA_COMMON_IO_OFF	13
@@ -803,6 +816,24 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	return 0;
 }
 
+static int __exit rbt_fpga_remove_io(struct rbt_info *info)
+{
+	int ret;
+	ret = misc_deregister(&info->io_miscdev);
+	if(ret<0){
+		printk("Failed to deregister fpga io device\n");
+		return ret;
+	}
+	ret = misc_deregister(&info->axis_io_miscdev);
+	if(ret<0){
+		printk("Failed to deregister fpga axis io device\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+
 static ssize_t rbt_fpga_encoder_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
 {
@@ -894,6 +925,18 @@ static int __init rbt_fpga_init_encoder(struct rbt_info *info)
 	return 0;
 }
 
+static int __exit rbt_fpga_remove_encoder(struct rbt_info *info)
+{
+	int ret;
+	ret = misc_deregister(&info->encoder_miscdev);
+	if(ret<0){
+		printk("Failed to deregister fpga encoder device\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int __init rbt_fpga_probe(struct platform_device *pdev)
 {
 	struct rbt_info *info;
@@ -981,6 +1024,10 @@ static int __exit rbt_fpga_remove(struct platform_device *pdev)
 {
 	struct rbt_info *info = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	rbt_fpga_remove_encoder(info);
+	rbt_fpga_remove_io(info);
+	rbt_fpga_remove_pulse(info);
 
 	free_irq(info->irq, info);
 	platform_set_drvdata(pdev, NULL);
