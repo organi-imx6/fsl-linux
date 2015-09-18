@@ -17,30 +17,31 @@
 
 
 #define RBT_VER_OFFSET		0
-#define RBT_SYS_OFFSET		1
-#define RBT_INT_OFFSET		2
-#define RBT_TPRD_OFFSET		3
-#define RBT_PPRD_OFFSET		4
-#define RBT_TCNT_OFFSET		5
-#define RBT_PCTRL_OFFSET	8
-#define RBT_PDDAT_OFFSET	9
-#define RBT_PMODE_OFFSET	10
-#define RBT_CABSTA_OFFSET	11
-#define RBT_CZSTA_OFFSET	12
-#define RBT_CMODE_OFFSET	13
-#define RBT_SLCON_OFFSET	14
-#define RBT_UMUX_OFFSET		15
+#define RBT_SYS_OFFSET		2
+#define RBT_INT_OFFSET		4
+#define RBT_TPRD_OFFSET		6
+#define RBT_PPRD_OFFSET		8
+#define RBT_TCNT_OFFSET		0xA
+#define RBT_PCTRL_OFFSET	0x10
+#define RBT_PDDAT_OFFSET	0x12
+#define RBT_PMODE_OFFSET	0x14
+#define RBT_CABSTA_OFFSET	0x16
+#define RBT_CZSTA_OFFSET	0x18
+#define RBT_CMODE_OFFSET	0x1A
+#define RBT_SLCON_OFFSET	0x1C
+#define RBT_UMUX_OFFSET		0x1E
 
-#define RBT_PnPRD_OFFSET(n)		(0x10+4*(n))
-#define RBT_PnCNT_OFFSET(n)		(0x11+4*(n))
-#define RBT_PnPRDD_OFFSET(n)	(0x12+4*(n))
-#define RBT_PnACC_OFFSET(n)		(0x13+4*(n))
-#define RBT_CnDAT_OFFSET(n)		(0x30+2*(n))
-#define RBT_CnZDL_OFFSET(n)		(0x31+2*(n))
+#define RBT_PnPRD_OFFSET(n)		(0x20+8*(n))
+#define RBT_PnCNT_OFFSET(n)		(0x22+8*(n))
+#define RBT_PnPRDD_OFFSET(n)	(0x24+8*(n))
+#define RBT_PnACC_OFFSET(n)		(0x26+8*(n))
+#define RBT_CnDAT_OFFSET(n)		(0x60+4*(n))
+#define RBT_CnZDL_OFFSET(n)		(0x62+4*(n))
 
-#define RBT_INPUT_OFFSET	(0x40)
-#define RBT_OUTPUT_OFFSET	(0x60)
-
+#define RBT_INPUT_OFFSET	(0x80)
+#define RBT_INPUT_LENGTH	(0x20)
+#define RBT_OUTPUT_OFFSET	(0xC0)
+#define RBT_OUTPUT_LENGTH	(0x20)
 
 #define RBT_VER_ID			0x11
 #define GET_RBT_VER_ID(x)	(((x)>>8)&0xff)
@@ -140,13 +141,13 @@ static inline void rbt_fpga_writeb(struct rbt_info *info,
 static inline void rbt_fpga_writew(struct rbt_info *info,
 		uint16_t val, unsigned int off)
 {
-	__raw_writew(val, info->iobase + (off<<1));
+	__raw_writew(val, info->iobase + off);
 }
 
 static inline uint16_t rbt_fpga_readw(struct rbt_info *info,
 		unsigned int off)
 {
-	return __raw_readw(info->iobase + (off<<1));
+	return __raw_readw(info->iobase + off);
 }
 
 inline fpga_pulse_t* GetFreePulseBuffer(struct rbt_info *info)
@@ -285,7 +286,7 @@ static ssize_t rbt_fpga_set_address(struct device *dev,
 	if (err)
 		return -EINVAL;
 
-	if (offset > (PAGE_SIZE/2))
+	if (offset > PAGE_SIZE)
 		return -EINVAL;
 
 	info->offset = offset;
@@ -299,10 +300,37 @@ static ssize_t rbt_fpga_get_data(struct device *dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rbt_info *info = platform_get_drvdata(pdev);
 
+	return sprintf(buf, "0x%x:0x%x\n", info->offset, rbt_fpga_readb(info, info->offset));
+}
+
+static ssize_t rbt_fpga_get_wdata(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+
 	return sprintf(buf, "0x%x:0x%x\n", info->offset, rbt_fpga_readw(info, info->offset));
 }
 
 static ssize_t rbt_fpga_set_data(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rbt_info *info = platform_get_drvdata(pdev);
+
+	unsigned long val;
+	int err;
+
+	err = strict_strtol(buf, 0, &val);
+	if (err)
+		return -EINVAL;
+
+	rbt_fpga_writeb(info, val, info->offset);
+
+	return count;
+}
+
+static ssize_t rbt_fpga_set_wdata(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -327,11 +355,11 @@ static ssize_t rbt_fpga_regdump(struct device *dev,
 	struct rbt_info *info = platform_get_drvdata(pdev);
 
 	unsigned long i, n=0;
-	for(i=0;i<info->iosize/2;i++){
-		if((i&0x7)==0)
+	for(i=0;i<info->iosize;i+=2){
+		if((i&0xf)==0)
 			n += sprintf(buf+n, "0x%04lx: ", i);
 		n += sprintf(buf+n, "0x%04x", rbt_fpga_readw(info, i));
-		if((i&0x7)==7)
+		if((i&0xf)==0xe)
 			n += sprintf(buf+n, "\n");
 		else
 			n += sprintf(buf+n, ",");
@@ -428,6 +456,7 @@ static ssize_t rbt_fpga_get_excardid(struct device *dev,
 static DEVICE_ATTR(freq, S_IWUSR | S_IRUGO,rbt_fpga_get_freq, rbt_fpga_set_freq);
 static DEVICE_ATTR(address, S_IWUSR | S_IRUGO, rbt_fpga_get_address, rbt_fpga_set_address);
 static DEVICE_ATTR(data, S_IWUSR | S_IRUGO, rbt_fpga_get_data, rbt_fpga_set_data);
+static DEVICE_ATTR(wdata, S_IWUSR | S_IRUGO, rbt_fpga_get_wdata, rbt_fpga_set_wdata);
 static DEVICE_ATTR(regdump, S_IWUSR | S_IRUGO, rbt_fpga_regdump, NULL);
 static DEVICE_ATTR(error, S_IWUSR | S_IRUGO, rbt_fpga_errordump, NULL);
 static DEVICE_ATTR(uartmode, S_IWUSR | S_IRUGO,rbt_fpga_get_uartmode, rbt_fpga_set_uartmode);
@@ -438,6 +467,7 @@ static struct attribute *rbt_fpga_attrs[] = {
 	&dev_attr_freq.attr,
 	&dev_attr_address.attr,
 	&dev_attr_data.attr,
+	&dev_attr_wdata.attr,
 	&dev_attr_regdump.attr,
 	&dev_attr_error.attr,
 	&dev_attr_uartmode.attr,
@@ -978,21 +1008,24 @@ static int __exit rbt_fpga_remove_encoder(struct rbt_info *info)
 
 static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 {
-	unsigned int off;
+	int off;
 	uint8_t v;
 	uint8_t *id = info->excard_id;
-	for(off=RBT_INPUT_OFFSET; off<RBT_OUTPUT_OFFSET;id++){
-		v = rbt_fpga_readb(info,off);
+
+	msleep(2);//wait for id update
+
+	for(off=RBT_INPUT_OFFSET+RBT_INPUT_LENGTH-1; off>=RBT_INPUT_OFFSET;id++){
+		v = rbt_fpga_readb(info,(unsigned int)off);
 		if(v==0xff || v==0|| v==0xcc)	//to do??
 			break;
 
 		*id=v;
 		if(GET_EXCARDID_ID(v)>=ARRAY_SIZE(excard_id2size_table)){
 			dev_err(info->dev, "unknown card id 0x%x\n", v);
-			off++;
+			off--;
 			continue;
 		}
-		off+=excard_id2size_table[GET_EXCARDID_ID(v)];
+		off-=excard_id2size_table[GET_EXCARDID_ID(v)];
 	}
 }
 
@@ -1043,11 +1076,11 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 		goto fail_no_rbt_fpga;
 	}
 
-	rbt_fpga_get_cardid(info);
-
 	err = rbt_fpga_init_pulse(info);
 	if(err<0)
 		goto fail_no_rbt_fpga;
+
+	rbt_fpga_get_cardid(info);
 
 	err = rbt_fpga_init_io(info);
 	if(err<0)
