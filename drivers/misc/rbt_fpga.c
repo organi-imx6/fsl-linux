@@ -2,6 +2,8 @@
  *  RBT FPGA driver
  */
 
+#define DEBUG
+
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -40,8 +42,10 @@
 
 #define RBT_INPUT_OFFSET	(0x80)
 #define RBT_INPUT_LENGTH	(0x20)
+#define RBT_INPUT_OFFEND	(RBT_INPUT_OFFSET+RBT_INPUT_LENGTH-1)
 #define RBT_OUTPUT_OFFSET	(0xC0)
 #define RBT_OUTPUT_LENGTH	(0x20)
+#define RBT_OUTPUT_OFFEND	(RBT_OUTPUT_OFFSET+RBT_OUTPUT_LENGTH-1)
 
 #define RBT_VER_ID			0x11
 #define GET_RBT_VER_ID(x)	(((x)>>8)&0xff)
@@ -82,6 +86,10 @@
 #define wake_up_interruptible(x)	swait_wake_interruptible(x)
 #endif
 
+#define IOCARD_OFFSET_BIT_DEF(w,b)		(((w)<<4)+(b))
+#define IOCARD_OFFSET_WORD(x)		((x)>>4)
+#define IOCARD_OFFSET_BIT(x)		((x)&0xf)
+
 typedef struct fpga_pulse{
 	uint16_t	count[PULSE_CH_NUM];
 	uint16_t	period[PULSE_CH_NUM];
@@ -95,6 +103,12 @@ typedef struct fpga_encoder{
 	uint16_t	z_low16;
 	uint16_t	z_high16;
 }fpga_encoder_t;
+
+struct excard_data{
+	u8 id[MAX_EXCARD_NUM];
+	int axio_card_num;
+	uint16_t axio_offset_table[PULSE_CH_NUM];
+};
 
 struct rbt_info {
 	struct device *dev;
@@ -111,20 +125,208 @@ struct rbt_info {
 	int head;
 	int tail;
 	fpga_encoder_t encoder[PULSE_CH_NUM];
-	u8 excard_id[MAX_EXCARD_NUM];
+	uint8_t shadow_input[RBT_INPUT_LENGTH];
+	uint8_t shadow_output[RBT_OUTPUT_LENGTH];
 
 	unsigned int irq;
 
 	unsigned int offset;
 	unsigned int interrupt_lost;
 	unsigned int pulse_queue_break;
+	struct excard_data excard;
 	struct miscdevice io_miscdev;
 	struct miscdevice axis_io_miscdev;
 	struct miscdevice pulse_miscdev;
 	struct miscdevice encoder_miscdev;
 };
 
-static const uint8_t excard_id2size_table[]={0xff, 6, 1, 4, 8, 4, 1};
+static const uint16_t axio_default_offset_table[]={
+	IOCARD_OFFSET_BIT_DEF(12,12),// 0
+	IOCARD_OFFSET_BIT_DEF(12,8),// 1
+	IOCARD_OFFSET_BIT_DEF(12,4),// 2
+	IOCARD_OFFSET_BIT_DEF(12,0),// 3
+	IOCARD_OFFSET_BIT_DEF(11,12),// 4
+	IOCARD_OFFSET_BIT_DEF(11,8),// 5
+	IOCARD_OFFSET_BIT_DEF(11,4),// 6
+	IOCARD_OFFSET_BIT_DEF(11,0),// 7
+};
+
+struct excard_info{
+	const char *name;
+	uint8_t	id;
+	uint8_t	size;
+	void (*newcard)(struct rbt_info*, unsigned int);
+	void (*read_dio)(char*, char*, unsigned int*);
+	void (*write_dio)(char*, char*, unsigned int*);
+	void (*read_aio)(char*, char*, unsigned int*);
+	void (*write_aio)(char*, char*, unsigned int*);
+};
+
+void newcard_saxis(struct rbt_info *info, unsigned int byte_off)
+{
+	struct excard_data *excard = &info->excard;
+
+	dev_dbg(info->dev, "%s byte_off=0x%x\n", __FUNCTION__, byte_off);
+
+	excard->axio_offset_table[excard->axio_card_num++]=
+		IOCARD_OFFSET_BIT_DEF(byte_off>>1, ((byte_off&0x1)<<3)+4);
+	dev_dbg(info->dev, "axio_offset_table(%d)=0x%x\n",
+		excard->axio_card_num-1, excard->axio_offset_table[excard->axio_card_num-1]);
+
+	excard->axio_offset_table[excard->axio_card_num++]=
+		IOCARD_OFFSET_BIT_DEF(byte_off>>1, ((byte_off&0x1)<<3));
+
+	dev_dbg(info->dev, "axio_offset_table(%d)=0x%x\n",
+		excard->axio_card_num-1, excard->axio_offset_table[excard->axio_card_num-1]);
+}
+
+#define CMP_NBIT_RETURN(t)	do{if(n==nbit) return;\
+		if(n>nbit){(t) &= (1<<(8-(n-nbit)))-1;return;}}while(0)
+
+static void get_bits(char *target, char *src, 
+	unsigned int srcbitoff, unsigned int nbit)
+{
+	char *ps = &src[srcbitoff>>3];
+	unsigned int n=0;
+
+	srcbitoff &= 0x7;
+	for(;;){
+		*target = *ps>>srcbitoff;
+		n+=(8-srcbitoff);
+		CMP_NBIT_RETURN(*target);
+		ps++;
+		*target |= *ps<<(8-srcbitoff);
+		n+=srcbitoff;
+		CMP_NBIT_RETURN(*target);
+		target++;
+	}
+}
+
+static void put_bits(char *target,
+	unsigned int tarbitoff, char *src, unsigned int nbit)
+{
+	char *pt = &target[tarbitoff>>3];
+	unsigned int n=0;
+
+	tarbitoff &= 0x7;
+	for(;;){
+		*pt |= *src<<tarbitoff;
+		n+=(8-tarbitoff);
+		CMP_NBIT_RETURN(*pt);
+		pt++;
+		*pt = *src>>(8-tarbitoff);
+		n+=tarbitoff;
+		CMP_NBIT_RETURN(*pt);
+		src++;
+	}
+}
+
+static void powerio_read_dio(char *src,
+	char *buf, unsigned int *bitoff)
+{
+	char v[4];
+	memcpy(v, src, 4);
+	put_bits(buf, *bitoff, v, 32);
+	*bitoff+=32;
+}
+
+static void powerio_write_dio(char *target,
+	char *buf, unsigned int *bitoff)
+{
+	char v[2];
+	get_bits(v, buf, *bitoff, 16);
+	memcpy(target, v, 2);
+	*bitoff+=16;
+}
+
+static void wedrobot_read_dio(char *src, 
+	char *buf, unsigned int *bitoff)
+{
+	char v;
+	//wed DI 0-3
+	memcpy(&v, src, 1);
+	put_bits(buf, *bitoff, &v, 4);
+	*bitoff+=4;
+	//DI 0-7
+	memcpy(&v, src+1, 1);
+	put_bits(buf, *bitoff, &v, 8);
+	*bitoff+=8;
+}
+
+static void wedrobot_write_dio(char *target, 
+	char *buf, unsigned int *bitoff)
+{
+	char v;
+	//wed DO 0-7
+	get_bits(&v, buf, *bitoff, 8);
+	memcpy(target, &v, 1);
+	*bitoff+=8;
+	//DI 0-3
+	get_bits(&v, buf, *bitoff, 4);
+	memcpy(target+1, &v, 1);
+	*bitoff+=4;
+}
+
+static void io_read_dio(char *src,
+	char *buf, unsigned int *bitoff)
+{
+	char v[4];
+	memcpy(v, src, 4);
+	put_bits(buf, *bitoff, v, 32);
+	*bitoff+=32;
+}
+
+static void io_write_dio(char *target,
+	char *buf, unsigned int *bitoff)
+{
+	char v[4];
+	get_bits(v, buf, *bitoff, 32);
+	memcpy(target, v, 4);
+	*bitoff+=32;
+}
+
+static const struct excard_info excard_info_table[]={
+	{.name = NULL, },
+	{
+		.name = "power & io",
+		.id = 1,
+		.size = 6,
+		.read_dio = powerio_read_dio,
+		.write_dio = powerio_write_dio,
+	},
+	{
+		.name = "simple axis",
+		.id = 2,
+		.size = 1,
+		.newcard = newcard_saxis,
+	},
+	{
+		.name = "complex axis",
+		.id = 3,
+		.size = 4,
+	},
+	{
+		.name = "wed robot",
+		.id = 4,
+		.size = 8,
+		.read_dio = wedrobot_read_dio,
+		.write_dio = wedrobot_write_dio,
+		//.read_aio = wedrobot_read_aio,
+		//.write_aio = wedrobot_write_aio,
+	},
+	{
+		.name = "io",
+		.id = 5,
+		.size = 4,
+		.read_dio = io_read_dio,
+		.write_dio = io_write_dio,
+	},
+	{
+		.name = "ethernet & yaskawa bus",
+		.id = 6,
+		.size = 1,
+	},
+};
 
 static inline uint8_t rbt_fpga_readb(struct rbt_info *info,
 		unsigned int off)
@@ -449,7 +651,7 @@ static ssize_t rbt_fpga_get_excardid(struct device *dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rbt_info *info = platform_get_drvdata(pdev);
 
-	memcpy(buf, info->excard_id, MAX_EXCARD_NUM);
+	memcpy(buf, info->excard.id, MAX_EXCARD_NUM);
 	return MAX_EXCARD_NUM;
 }
 
@@ -498,6 +700,18 @@ static void rbt_fpga_sync_encoder(struct rbt_info *info)
 	index++;
 	if(index>=PULSE_CH_NUM)
 		index=0;
+}
+
+static void rbt_fpga_sync_shadow(struct rbt_info *info)
+{
+	int i;
+	uint16_t *p = (uint16_t *)info->shadow_input;
+	for(i=0;i<RBT_INPUT_LENGTH;i+=2,p++)
+		*p = rbt_fpga_readw(info, RBT_INPUT_OFFSET+i);
+
+	p = (uint16_t *)info->shadow_output;
+	for(i=0;i<RBT_OUTPUT_LENGTH;i+=2,p++)
+		rbt_fpga_writew(info, *p, RBT_OUTPUT_OFFSET+i);
 }
 
 static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
@@ -556,6 +770,8 @@ static irqreturn_t rbt_fpga_irq_handler(int irq, struct rbt_info *info)
 		rbtsys &=~(1<<3);
 		rbt_fpga_writew(info, rbtsys, RBT_SYS_OFFSET);
 	}
+
+	rbt_fpga_sync_shadow(info);
 	
 	return IRQ_HANDLED;
 }
@@ -669,23 +885,27 @@ static int __exit rbt_fpga_remove_pulse(struct rbt_info *info)
 	return 0;
 }
 
-
-#define IO_NUM_16BYTE	3	//16
-#define FPGA_COMMON_IO_OFF	13
+#define NBIT2BYTE(nb)	(((nb)+7)>>3)
 
 static ssize_t rbt_fpga_io_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
 {
 	struct rbt_info *info = file->private_data;
-	int i;
-	uint16_t tbuf[IO_NUM_16BYTE];
 
-	if(count!=IO_NUM_16BYTE*2)
-		return -EINVAL;
+	uint8_t tbuf[RBT_INPUT_LENGTH];
+	uint8_t *id=info->excard.id, cid;
+	unsigned int bitoff=0;
+	char *base=info->shadow_input+RBT_INPUT_LENGTH;
 
-//	memcpy_fromio(tmp, info->base+RBT_INPUT_OFFSET+5, count);
-	for(i=0;i<IO_NUM_16BYTE;i++)
-		tbuf[i] = rbt_fpga_readw(info, RBT_INPUT_OFFSET+FPGA_COMMON_IO_OFF+i);
+	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
+		base-=excard_info_table[cid].size;
+		if(excard_info_table[cid].read_dio)
+			excard_info_table[cid].read_dio(base, tbuf,&bitoff);
+	}
+
+	if(count>NBIT2BYTE(bitoff))
+		count = NBIT2BYTE(bitoff);
+
 	copy_to_user(buf, tbuf, count);
 
 	return count;
@@ -700,15 +920,24 @@ static ssize_t rbt_fpga_io_write(struct file *file, const char __user *buf,
 	 * data and then overwrite it with our own private structure.
 	 */
 	struct rbt_info *info = file->private_data;
-	int i;
-	uint16_t tbuf[IO_NUM_16BYTE];
+	uint8_t tbuf[RBT_INPUT_LENGTH];
+	uint8_t *id=info->excard.id, cid;
+	unsigned int bitoff=0;
+	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
 
-	if(count!=IO_NUM_16BYTE*2)
+	if(count>RBT_OUTPUT_LENGTH)
 		return -EINVAL;
 
 	copy_from_user(tbuf, buf, count);
-	for(i=0;i<IO_NUM_16BYTE;i++)
-		rbt_fpga_writew(info, tbuf[i], RBT_OUTPUT_OFFSET+FPGA_COMMON_IO_OFF+i);
+
+	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
+		base-=excard_info_table[cid].size;
+		if(excard_info_table[cid].write_dio)
+			excard_info_table[cid].write_dio(base, tbuf,&bitoff);
+	}
+
+	if(count>NBIT2BYTE(bitoff))
+		count = NBIT2BYTE(bitoff);
 
 	return count;
 }
@@ -723,46 +952,6 @@ static const struct file_operations io_fops = {
 	.write		= rbt_fpga_io_write,
 };
 
-typedef struct{
-	unsigned int word_offset;
-	unsigned int bit_offset;
-}offset_table_t;
-
-static const offset_table_t offset_table[]={
-	{// 0
-		.word_offset=12,
-		.bit_offset=12,
-	},
-	{// 1
-		.word_offset=12,
-		.bit_offset=8,
-	},
-	{// 2
-		.word_offset=12,
-		.bit_offset=4,
-	},
-	{// 3
-		.word_offset=12,
-		.bit_offset=0,
-	},
-	{// 4
-		.word_offset=11,
-		.bit_offset=12,
-	},
-	{// 5
-		.word_offset=11,
-		.bit_offset=8,
-	},
-	{// 6
-		.word_offset=11,
-		.bit_offset=4,
-	},
-	{// 7
-		.word_offset=11,
-		.bit_offset=0,
-	},
-};
-
 static ssize_t rbt_axis_io_read(struct file *file, 
 	char __user *buf, size_t count, loff_t *ppos)
 {
@@ -770,11 +959,12 @@ static ssize_t rbt_axis_io_read(struct file *file,
 	uint16_t v;
 	unsigned int wordoff, bitoff;
 
-	if(count!=1 || *ppos >= ARRAY_SIZE(offset_table))
+	if(count!=1 || *ppos >= PULSE_CH_NUM)
 		return -EINVAL;
 
-	wordoff=offset_table[*ppos].word_offset+RBT_INPUT_OFFSET;
-	bitoff=offset_table[*ppos].bit_offset;
+	v=info->excard.axio_offset_table[*ppos];
+	wordoff=IOCARD_OFFSET_WORD(v)+RBT_INPUT_OFFSET;
+	bitoff=IOCARD_OFFSET_BIT(v);
 	
 	v = ~rbt_fpga_readw(info, wordoff)>>bitoff;
 	v &= 0xf;
@@ -790,11 +980,12 @@ static ssize_t rbt_axis_io_write(struct file *file, const char __user *buf,
 	uint16_t v, t;
 	unsigned int wordoff, bitoff;
 
-	if(count!=1 || *ppos >= ARRAY_SIZE(offset_table))
+	if(count!=1 || *ppos >= PULSE_CH_NUM)
 		return -EINVAL;
 
-	wordoff=offset_table[*ppos].word_offset+RBT_OUTPUT_OFFSET;
-	bitoff=offset_table[*ppos].bit_offset;
+	v = info->excard.axio_offset_table[*ppos];
+	wordoff=IOCARD_OFFSET_WORD(v)+RBT_OUTPUT_OFFSET;
+	bitoff=IOCARD_OFFSET_BIT(v);
 
 	get_user(v, buf);
 	v = ~v;
@@ -1010,22 +1201,32 @@ static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 {
 	int off;
 	uint8_t v;
-	uint8_t *id = info->excard_id;
+	uint8_t *id = info->excard.id;
+	const struct excard_info *cinfo;
 
 	msleep(2);//wait for id update
 
-	for(off=RBT_INPUT_OFFSET+RBT_INPUT_LENGTH-1; off>=RBT_INPUT_OFFSET;id++){
+	for(off=RBT_INPUT_OFFEND; off>=RBT_INPUT_OFFSET;id++){
 		v = rbt_fpga_readb(info,(unsigned int)off);
 		if(v==0xff || v==0|| v==0xcc)	//to do??
 			break;
 
 		*id=v;
-		if(GET_EXCARDID_ID(v)>=ARRAY_SIZE(excard_id2size_table)){
+		if(GET_EXCARDID_ID(v)>=ARRAY_SIZE(excard_info_table)){
 			dev_err(info->dev, "unknown card id 0x%x\n", v);
 			off--;
 			continue;
 		}
-		off-=excard_id2size_table[GET_EXCARDID_ID(v)];
+
+		cinfo = &excard_info_table[GET_EXCARDID_ID(v)];
+		if(cinfo->id==0)
+			break;
+
+		dev_info(info->dev, "find %s card version %d\n",
+			cinfo->name, GET_EXCARDID_VER(v));
+		off-=cinfo->size;
+		if(off>0 && cinfo->newcard)
+			cinfo->newcard(info, (unsigned int)off+1-RBT_INPUT_OFFSET);
 	}
 }
 
