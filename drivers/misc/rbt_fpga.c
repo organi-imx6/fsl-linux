@@ -135,6 +135,7 @@ struct rbt_info {
 	unsigned int pulse_queue_break;
 	struct excard_data excard;
 	struct miscdevice io_miscdev;
+	struct miscdevice aio_miscdev;
 	struct miscdevice axis_io_miscdev;
 	struct miscdevice pulse_miscdev;
 	struct miscdevice encoder_miscdev;
@@ -158,8 +159,8 @@ struct excard_info{
 	void (*newcard)(struct rbt_info*, unsigned int);
 	void (*read_dio)(char*, char*, unsigned int*);
 	void (*write_dio)(char*, char*, unsigned int*);
-	void (*read_aio)(char*, char*, unsigned int*);
-	void (*write_aio)(char*, char*, unsigned int*);
+	int (*read_aio)(char*, uint32_t*);
+	int (*write_aio)(char*, uint32_t*);
 };
 
 void newcard_saxis(struct rbt_info *info, unsigned int byte_off)
@@ -267,6 +268,26 @@ static void wedrobot_write_dio(char *target,
 	*bitoff+=4;
 }
 
+//return number of analog
+static int wedrobot_read_aio(char *src, uint32_t *buf)
+{
+	uint32_t v=0;
+	memcpy(&v, src+2, 3);
+	*buf++ = v&0xfff;
+	*buf = v>>12;
+	return 2;
+}
+
+static int wedrobot_write_aio(char *target, uint32_t *buf)
+{
+	uint32_t v;
+
+	v = *buf++&0xfff;
+	v |= *buf<<12;
+	memcpy(target+2, &v, 3);
+	return 2;
+}
+
 static void io_read_dio(char *src,
 	char *buf, unsigned int *bitoff)
 {
@@ -311,8 +332,8 @@ static const struct excard_info excard_info_table[]={
 		.size = 8,
 		.read_dio = wedrobot_read_dio,
 		.write_dio = wedrobot_write_dio,
-		//.read_aio = wedrobot_read_aio,
-		//.write_aio = wedrobot_write_aio,
+		.read_aio = wedrobot_read_aio,
+		.write_aio = wedrobot_write_aio,
 	},
 	{
 		.name = "io",
@@ -899,6 +920,7 @@ static ssize_t rbt_fpga_io_read(struct file *file,
 
 	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
 		base-=excard_info_table[cid].size;
+
 		if(excard_info_table[cid].read_dio)
 			excard_info_table[cid].read_dio(base, tbuf,&bitoff);
 	}
@@ -920,7 +942,7 @@ static ssize_t rbt_fpga_io_write(struct file *file, const char __user *buf,
 	 * data and then overwrite it with our own private structure.
 	 */
 	struct rbt_info *info = file->private_data;
-	uint8_t tbuf[RBT_INPUT_LENGTH];
+	uint8_t tbuf[RBT_OUTPUT_LENGTH];
 	uint8_t *id=info->excard.id, cid;
 	unsigned int bitoff=0;
 	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
@@ -932,6 +954,7 @@ static ssize_t rbt_fpga_io_write(struct file *file, const char __user *buf,
 
 	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
 		base-=excard_info_table[cid].size;
+
 		if(excard_info_table[cid].write_dio)
 			excard_info_table[cid].write_dio(base, tbuf,&bitoff);
 	}
@@ -1038,13 +1061,73 @@ static void rbt_fpga_test_io(struct rbt_info *info)
 }
 #endif
 
+static ssize_t rbt_fpga_aio_read(struct file *file, 
+	char __user *buf, size_t count, loff_t *ppos)
+{
+	struct rbt_info *info = file->private_data;
+
+	uint32_t tbuf[RBT_INPUT_LENGTH/4];
+	uint8_t *id=info->excard.id, cid;
+	unsigned int n=0;
+	char *base=info->shadow_input+RBT_INPUT_LENGTH;
+
+	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
+		base-=excard_info_table[cid].size;
+		if(excard_info_table[cid].read_aio)
+			n = excard_info_table[cid].read_aio(base, tbuf+n);
+	}
+
+	if(count>n*4)
+		count = n*4;
+
+	copy_to_user(buf, tbuf, count);
+
+	return count;
+}
+
+static ssize_t rbt_fpga_aio_write(struct file *file, const char __user *buf,
+			  size_t count, loff_t *ppos)
+{
+	struct rbt_info *info = file->private_data;
+	uint32_t tbuf[RBT_INPUT_LENGTH/4];
+	uint8_t *id=info->excard.id, cid;
+	unsigned int n=0;
+	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
+
+	if(count>sizeof(tbuf))
+		return -EINVAL;
+
+	copy_from_user(tbuf, buf, count);
+
+	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
+		base-=excard_info_table[cid].size;
+		if(excard_info_table[cid].write_aio)
+			n = excard_info_table[cid].write_aio(base, tbuf+n);
+	}
+
+	if(count>n*4)
+		count = n*4;
+
+	return count;
+}
+
+DEFINE_MISCDEV_OPEN(aio)
+
+static const struct file_operations aio_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aio_open,
+	.llseek 	= noop_llseek,
+	.read		= rbt_fpga_aio_read,
+	.write		= rbt_fpga_aio_write,
+};
+
 static int __init rbt_fpga_init_io(struct rbt_info *info)
 {
 	uint16_t val = rbt_fpga_readw(info, RBT_SYS_OFFSET);
 	int ret;
 	
-	memset_io(info->iobase+(RBT_OUTPUT_OFFSET<<1), 0xff, 32);
-	msleep(10);
+	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, 32);
+	msleep(2);
 	dev_info(info->dev, "RBT FPGA enable IO\n");
 	rbt_fpga_writew(info, val|RBT_SYS_OEN, RBT_SYS_OFFSET);
 
@@ -1053,6 +1136,10 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	info->io_miscdev.name = "rbtio";
 	info->io_miscdev.fops = &io_fops;
 
+	info->aio_miscdev.minor = MISC_DYNAMIC_MINOR;
+	info->aio_miscdev.name = "rbtaio";
+	info->aio_miscdev.fops = &aio_fops;
+
 	info->axis_io_miscdev.minor = MISC_DYNAMIC_MINOR;
 	info->axis_io_miscdev.name = "axisio";
 	info->axis_io_miscdev.fops = &axis_io_fops;
@@ -1060,6 +1147,12 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	ret = misc_register(&info->io_miscdev);
 	if(ret<0){
 		dev_err(info->dev, "Failed to register fpga io device\n");
+		return ret;
+	}
+
+	ret = misc_register(&info->aio_miscdev);
+	if(ret<0){
+		dev_err(info->dev, "Failed to register fpga analog io device\n");
 		return ret;
 	}
 
