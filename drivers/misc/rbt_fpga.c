@@ -87,8 +87,8 @@
 #endif
 
 #define IOCARD_OFFSET_BIT_DEF(w,b)		(((w)<<4)+(b))
-#define IOCARD_OFFSET_WORD(x)		((x)>>4)
-#define IOCARD_OFFSET_BIT(x)		((x)&0xf)
+#define IOCARD_OFFSET_BYTE(x)		((x)>>3)
+#define IOCARD_OFFSET_BIT(x)		((x)&0x7)
 
 typedef struct fpga_pulse{
 	uint16_t	count[PULSE_CH_NUM];
@@ -980,16 +980,12 @@ static ssize_t rbt_axis_io_read(struct file *file,
 {
 	struct rbt_info *info = file->private_data;
 	uint16_t v;
-	unsigned int wordoff, bitoff;
 
 	if(count!=1 || *ppos >= PULSE_CH_NUM)
 		return -EINVAL;
 
 	v=info->excard.axio_offset_table[*ppos];
-	wordoff=IOCARD_OFFSET_WORD(v)+RBT_INPUT_OFFSET;
-	bitoff=IOCARD_OFFSET_BIT(v);
-	
-	v = ~rbt_fpga_readw(info, wordoff)>>bitoff;
+	v = ~info->shadow_input[IOCARD_OFFSET_BYTE(v)]>>IOCARD_OFFSET_BIT(v);
 	v &= 0xf;
 
 	put_user(v, buf);
@@ -1001,23 +997,23 @@ static ssize_t rbt_axis_io_write(struct file *file, const char __user *buf,
 {
 	struct rbt_info *info = file->private_data;
 	uint16_t v, t;
-	unsigned int wordoff, bitoff;
+	unsigned int byteoff, bitoff;
 
 	if(count!=1 || *ppos >= PULSE_CH_NUM)
 		return -EINVAL;
 
 	v = info->excard.axio_offset_table[*ppos];
-	wordoff=IOCARD_OFFSET_WORD(v)+RBT_OUTPUT_OFFSET;
+	byteoff=IOCARD_OFFSET_BYTE(v);
 	bitoff=IOCARD_OFFSET_BIT(v);
 
 	get_user(v, buf);
 	v = ~v;
 	v &= 0xf;
 	
-	t = rbt_fpga_readw(info, wordoff);
+	t = info->shadow_output[byteoff];
 	t &= ~(0xf<<bitoff);
 	t |= (v<<bitoff);
-	rbt_fpga_writew(info, t, wordoff);
+	info->shadow_output[byteoff] = t;
 
 	return count;
 }
@@ -1170,11 +1166,19 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 static int __exit rbt_fpga_remove_io(struct rbt_info *info)
 {
 	int ret;
+
 	ret = misc_deregister(&info->io_miscdev);
 	if(ret<0){
 		dev_err(info->dev, "Failed to deregister fpga io device\n");
 		return ret;
 	}
+
+	ret = misc_deregister(&info->aio_miscdev);
+	if(ret<0){
+		dev_err(info->dev, "Failed to deregister fpga analog io device\n");
+		return ret;
+	}
+
 	ret = misc_deregister(&info->axis_io_miscdev);
 	if(ret<0){
 		dev_err(info->dev, "Failed to deregister fpga axis io device\n");
