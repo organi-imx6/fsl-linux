@@ -283,9 +283,13 @@ static int wedrobot_write_aio(char *target, uint32_t *buf)
 	uint32_t v;
 
 	v = *buf++&0xfff;
-	v |= *buf<<12;
+	v |= *buf++<<12;
 	memcpy(target+2, &v, 3);
-	return 2;
+
+	v = *buf++&0xfff;
+	v |= *buf<<12;
+	memcpy(target+5, &v, 3);
+	return 4;
 }
 
 static void io_read_dio(char *src,
