@@ -722,6 +722,7 @@ static void rbt_fpga_sync_encoder(struct rbt_info *info)
 	else if(diff>=32768 && e>last){
 		info->encoder[index].high16--;
 	}
+	info->encoder[index].low16=e;
 
 	index++;
 	if(index>=PULSE_CH_NUM)
