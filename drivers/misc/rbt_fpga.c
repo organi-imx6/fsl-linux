@@ -58,6 +58,7 @@
 #define GET_EXCARDID_ID(x)	(((x)>>4)&0xf)
 #define GET_EXCARDID_VER(x)	((x)&0xf)
 
+#define RBT_MAX_AIO_NUM		32
 #define PULSE_CH_NUM		8
 #define MAX_EXCARD_NUM		8
 #define RBT_CLK				(135000000/4)
@@ -273,8 +274,8 @@ static int wedrobot_read_aio(char *src, uint32_t *buf)
 {
 	uint32_t v=0;
 	memcpy(&v, src+2, 3);
-	*buf++ = v&0xfff;
-	*buf = v>>12;
+	*buf++ = (v&0xfff)<<20;
+	*buf = (v>>12)<<20;
 	return 2;
 }
 
@@ -282,12 +283,12 @@ static int wedrobot_write_aio(char *target, uint32_t *buf)
 {
 	uint32_t v;
 
-	v = *buf++&0xfff;
-	v |= *buf++<<12;
+	v = ((*buf++)>>20)&0xfff;
+	v |= ((*buf++)>>20)<<12;
 	memcpy(target+2, &v, 3);
 
-	v = *buf++&0xfff;
-	v |= *buf<<12;
+	v = ((*buf++)>>20)&0xfff;
+	v |= (*buf>>20)<<12;
 	memcpy(target+5, &v, 3);
 	return 4;
 }
@@ -1066,7 +1067,7 @@ static ssize_t rbt_fpga_aio_read(struct file *file,
 {
 	struct rbt_info *info = file->private_data;
 
-	uint32_t tbuf[RBT_INPUT_LENGTH/4];
+	uint32_t tbuf[RBT_MAX_AIO_NUM];
 	uint8_t *id=info->excard.id, cid;
 	unsigned int n=0;
 	char *base=info->shadow_input+RBT_INPUT_LENGTH;
@@ -1089,7 +1090,7 @@ static ssize_t rbt_fpga_aio_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	struct rbt_info *info = file->private_data;
-	uint32_t tbuf[RBT_INPUT_LENGTH/4];
+	uint32_t tbuf[RBT_MAX_AIO_NUM];
 	uint8_t *id=info->excard.id, cid;
 	unsigned int n=0;
 	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
