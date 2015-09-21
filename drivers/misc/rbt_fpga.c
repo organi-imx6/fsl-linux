@@ -1128,7 +1128,8 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	uint16_t val = rbt_fpga_readw(info, RBT_SYS_OFFSET);
 	int ret;
 	
-	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, 32);
+	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, RBT_OUTPUT_LENGTH);
+	memset(info->shadow_output, 0xff, RBT_OUTPUT_LENGTH);
 	msleep(2);
 	dev_info(info->dev, "RBT FPGA enable IO\n");
 	rbt_fpga_writew(info, val|RBT_SYS_OEN, RBT_SYS_OFFSET);
