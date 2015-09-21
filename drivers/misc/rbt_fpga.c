@@ -212,6 +212,7 @@ static void put_bits(char *target,
 
 	tarbitoff &= 0x7;
 	for(;;){
+		*pt &= 0xff>>(8-tarbitoff);
 		*pt |= *src<<tarbitoff;
 		n+=(8-tarbitoff);
 		CMP_NBIT_RETURN(*pt);
@@ -226,46 +227,36 @@ static void put_bits(char *target,
 static void powerio_read_dio(char *src,
 	char *buf, unsigned int *bitoff)
 {
-	char v[4];
-	memcpy(v, src, 4);
-	put_bits(buf, *bitoff, v, 32);
+	put_bits(buf, *bitoff, src, 32);
 	*bitoff+=32;
 }
 
 static void powerio_write_dio(char *target,
 	char *buf, unsigned int *bitoff)
 {
-	char v[2];
-	get_bits(v, buf, *bitoff, 16);
-	memcpy(target, v, 2);
+	get_bits(target, buf, *bitoff, 16);
 	*bitoff+=16;
 }
 
 static void wedrobot_read_dio(char *src, 
 	char *buf, unsigned int *bitoff)
 {
-	char v;
 	//wed DI 0-3
-	memcpy(&v, src, 1);
-	put_bits(buf, *bitoff, &v, 4);
+	put_bits(buf, *bitoff, src, 4);
 	*bitoff+=4;
 	//DI 0-7
-	memcpy(&v, src+1, 1);
-	put_bits(buf, *bitoff, &v, 8);
+	put_bits(buf, *bitoff, src+1, 8);
 	*bitoff+=8;
 }
 
 static void wedrobot_write_dio(char *target, 
 	char *buf, unsigned int *bitoff)
 {
-	char v;
 	//wed DO 0-7
-	get_bits(&v, buf, *bitoff, 8);
-	memcpy(target, &v, 1);
+	get_bits(target, buf, *bitoff, 8);
 	*bitoff+=8;
 	//DI 0-3
-	get_bits(&v, buf, *bitoff, 4);
-	memcpy(target+1, &v, 1);
+	get_bits(target+1, buf, *bitoff, 4);
 	*bitoff+=4;
 }
 
@@ -296,18 +287,14 @@ static int wedrobot_write_aio(char *target, uint32_t *buf)
 static void io_read_dio(char *src,
 	char *buf, unsigned int *bitoff)
 {
-	char v[4];
-	memcpy(v, src, 4);
-	put_bits(buf, *bitoff, v, 32);
+	put_bits(buf, *bitoff, src, 32);
 	*bitoff+=32;
 }
 
 static void io_write_dio(char *target,
 	char *buf, unsigned int *bitoff)
 {
-	char v[4];
-	get_bits(v, buf, *bitoff, 32);
-	memcpy(target, v, 4);
+	get_bits(target, buf, *bitoff, 32);
 	*bitoff+=32;
 }
 
@@ -952,18 +939,21 @@ static ssize_t rbt_fpga_io_write(struct file *file, const char __user *buf,
 	uint8_t *id=info->excard.id, cid;
 	unsigned int bitoff=0;
 	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
+	unsigned long flags;
 
 	if(count>RBT_OUTPUT_LENGTH)
 		return -EINVAL;
 
 	copy_from_user(tbuf, buf, count);
 
+	raw_spin_lock_irqsave(&info->lock,flags);
 	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
 		base-=excard_info_table[cid].size;
 
 		if(excard_info_table[cid].write_dio)
 			excard_info_table[cid].write_dio(base, tbuf,&bitoff);
 	}
+	raw_spin_unlock_irqrestore(&info->lock,flags);
 
 	if(count>NBIT2BYTE(bitoff))
 		count = NBIT2BYTE(bitoff);
@@ -1095,17 +1085,20 @@ static ssize_t rbt_fpga_aio_write(struct file *file, const char __user *buf,
 	uint8_t *id=info->excard.id, cid;
 	unsigned int n=0;
 	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
+	unsigned long flags;
 
 	if(count>sizeof(tbuf))
 		return -EINVAL;
 
 	copy_from_user(tbuf, buf, count);
 
+	raw_spin_lock_irqsave(&info->lock,flags);
 	for(;(cid=GET_EXCARDID_ID(*id))!=0;id++){
 		base-=excard_info_table[cid].size;
 		if(excard_info_table[cid].write_aio)
 			n = excard_info_table[cid].write_aio(base, tbuf+n);
 	}
+	raw_spin_unlock_irqrestore(&info->lock,flags);
 
 	if(count>n*4)
 		count = n*4;
