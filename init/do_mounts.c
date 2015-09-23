@@ -205,8 +205,8 @@ static int __init wait_thread_cpu_time_below(pid_t pid, int percent, int timeout
 extern void do_deferred_initcalls(void);
 
 #ifdef CONFIG_UBOOT_SMP_BOOT
-static unsigned long uboot_spl_start = 0x17780000;
-static unsigned long uboot_spl_end   = 0x17800000;
+static unsigned long uboot_spl_start;// = 0x17780000;
+static unsigned long uboot_spl_end;//   = 0x17800000;
 
 void __init early_init_dt_setup_uboot_spl_range(unsigned long start, unsigned long end)
 {
@@ -219,7 +219,7 @@ static int __init try_initroot(void)
 {
 	struct initroot_info info;
 	dev_t initroot_dev;
-	int retv=0, mount_initroot_sucess=0;
+	int retv=0, mount_initroot_sucess=0, no_initrootfs=0;
 	pid_t pid;
 
 	retv=get_initroot_info(&info);
@@ -228,9 +228,10 @@ static int __init try_initroot(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if(strcmp(info.fs, "initramfs")==0){
-		extern void wait_populate_initrootfs_done(void);
-		wait_populate_initrootfs_done();
-		mount_initroot_sucess=1;
+		extern int wait_populate_initrootfs_done(void);
+		no_initrootfs = wait_populate_initrootfs_done();
+		if(!no_initrootfs)
+			mount_initroot_sucess=1;
 	}
 	else
 #endif
@@ -315,7 +316,7 @@ static int __init try_initroot(void)
 	}
 
 #ifdef CONFIG_UBOOT_SMP_BOOT
-	{
+	if(!no_initrootfs){
 		struct clk *usdhc2, *usdhc3;
 		// free clocks enabled for UBOOT load initrd
 		usdhc2 = clk_get_sys(NULL, "usdhc2");
@@ -327,10 +328,12 @@ static int __init try_initroot(void)
 			clk_disable_unprepare(usdhc3);
 		}
 
-		// free memory reserved for UBOOT SPL
-		free_reserved_area(phys_to_virt(uboot_spl_start), 
-						   phys_to_virt(uboot_spl_end), 
-						   0, "uboot-spl");
+		if(uboot_spl_start){
+			// free memory reserved for UBOOT SPL
+			free_reserved_area(phys_to_virt(uboot_spl_start), 
+							   phys_to_virt(uboot_spl_end), 
+							   0, "uboot-spl");
+		}
 
 		// bring up secodary CPU
 		if (cpu_possible(1) && !cpu_online(1))

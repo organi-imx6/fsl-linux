@@ -587,10 +587,13 @@ static void __init clean_rootfs(void)
 
 static async_cookie_t populate_initrootfs_cookie;
 
-void __init wait_populate_initrootfs_done(void)
+int __init wait_populate_initrootfs_done(void)
 {
-	if(populate_initrootfs_cookie)
+	if(populate_initrootfs_cookie){
 		async_synchronize_cookie(populate_initrootfs_cookie);
+		return 0;
+	}
+	return 1;
 }
 
 u32 imx_get_cpu_arg(int cpu);
@@ -627,6 +630,9 @@ static void __init async_populate_initrootfs(void *data, async_cookie_t cookie)
 unpack:
 #endif
 
+	if(!initrd_start)
+		return;
+
 	printk(KERN_INFO "Unpacking initramfs...\n");
 	errmsg = unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start);
 	if (errmsg)
@@ -661,6 +667,12 @@ static int __init populate_initrootfs(void)
 	if (err < 0)
 		goto out;
 */
+
+	if(!initrd_start){
+		printk(KERN_INFO "no initrootfs.\n");
+		return 0;
+	}
+
 	populate_initrootfs_cookie = 
 		async_schedule(async_populate_initrootfs, NULL);
 
