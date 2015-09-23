@@ -594,7 +594,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 #ifdef CONFIG_UBOOT_SMP_BOOT
 	if (clk_prepare_enable(clk[IMX6QDL_CLK_USDHC2]))
 		printk(KERN_ERR "enable usdhc2 clk fail\n");
-	if (clk_prepare_enable(clk[IMX6QDL_CLK_USDHC2]))
+	if (clk_prepare_enable(clk[IMX6QDL_CLK_USDHC3]))
 		printk(KERN_ERR "enable usdhc3 clk fail\n");
 #endif
 }
