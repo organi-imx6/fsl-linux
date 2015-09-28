@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 
+//#define RBT_FPGA_SIM_CARDID
 
 #define RBT_VER_OFFSET		0
 #define RBT_SYS_OFFSET		2
@@ -160,11 +161,11 @@ struct excard_info{
 	void (*newcard)(struct rbt_info*, unsigned int);
 	void (*read_dio)(char*, char*, unsigned int*);
 	void (*write_dio)(char*, char*, unsigned int*);
-	int (*read_aio)(char*, uint32_t*);
-	int (*write_aio)(char*, uint32_t*);
+	int (*read_aio)(char*, int32_t*);
+	int (*write_aio)(char*, int32_t*);
 };
 
-void newcard_saxis(struct rbt_info *info, unsigned int byte_off)
+static void newcard_saxis(struct rbt_info *info, unsigned int byte_off)
 {
 	struct excard_data *excard = &info->excard;
 
@@ -261,27 +262,36 @@ static void wedrobot_write_dio(char *target,
 }
 
 //return number of analog
-static int wedrobot_read_aio(char *src, uint32_t *buf)
+static int wedrobot_read_aio(char *src, int32_t *buf)
 {
 	uint32_t v=0;
 	memcpy(&v, src+2, 3);
-	*buf++ = (v&0xfff)<<20;
-	*buf = (v>>12)<<20;
+	*buf++ = ((v&0xfff)-0x800)<<20;
+	*buf = ((v>>12)-0x800)<<20;
 	return 2;
 }
 
-static int wedrobot_write_aio(char *target, uint32_t *buf)
+static int wedrobot_write_aio(char *target, int32_t *buf)
 {
 	uint32_t v;
 
-	v = ((*buf++)>>20)&0xfff;
-	v |= ((*buf++)>>20)<<12;
+	v = (((*buf++)>>20)+0x800)&0xfff;
+	v |= (((*buf++)>>20)+0x800)<<12;
 	memcpy(target+2, &v, 3);
 
-	v = ((*buf++)>>20)&0xfff;
-	v |= (*buf>>20)<<12;
+	v = (((*buf++)>>20)+0x800)&0xfff;
+	v |= (((*buf)>>20)+0x800)<<12;
 	memcpy(target+5, &v, 3);
 	return 4;
+}
+
+static void newcard_wedrobot(struct rbt_info *info, unsigned int byte_off)
+{
+	int32_t buf[]={0,0,0,0};
+
+	dev_dbg(info->dev, "%s byte_off=0x%x\n", __FUNCTION__, byte_off);
+
+	wedrobot_write_aio(&info->shadow_output[byte_off], buf);
 }
 
 static void io_read_dio(char *src,
@@ -322,6 +332,7 @@ static const struct excard_info excard_info_table[]={
 		.name = "wed robot",
 		.id = 4,
 		.size = 8,
+		.newcard = newcard_wedrobot,
 		.read_dio = wedrobot_read_dio,
 		.write_dio = wedrobot_write_dio,
 		.read_aio = wedrobot_read_aio,
@@ -1058,7 +1069,7 @@ static ssize_t rbt_fpga_aio_read(struct file *file,
 {
 	struct rbt_info *info = file->private_data;
 
-	uint32_t tbuf[RBT_MAX_AIO_NUM];
+	int32_t tbuf[RBT_MAX_AIO_NUM];
 	uint8_t *id=info->excard.id, cid;
 	unsigned int n=0;
 	char *base=info->shadow_input+RBT_INPUT_LENGTH;
@@ -1081,7 +1092,7 @@ static ssize_t rbt_fpga_aio_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	struct rbt_info *info = file->private_data;
-	uint32_t tbuf[RBT_MAX_AIO_NUM];
+	int32_t tbuf[RBT_MAX_AIO_NUM];
 	uint8_t *id=info->excard.id, cid;
 	unsigned int n=0;
 	char *base=info->shadow_output+RBT_OUTPUT_LENGTH;
@@ -1121,9 +1132,6 @@ static int __init rbt_fpga_init_io(struct rbt_info *info)
 	uint16_t val = rbt_fpga_readw(info, RBT_SYS_OFFSET);
 	int ret;
 	
-	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, RBT_OUTPUT_LENGTH);
-	memset(info->shadow_output, 0xff, RBT_OUTPUT_LENGTH);
-	msleep(2);
 	dev_info(info->dev, "RBT FPGA enable IO\n");
 	rbt_fpga_writew(info, val|RBT_SYS_OEN, RBT_SYS_OFFSET);
 
@@ -1294,6 +1302,17 @@ static int __exit rbt_fpga_remove_encoder(struct rbt_info *info)
 	return 0;
 }
 
+#ifdef RBT_FPGA_SIM_CARDID
+static const unsigned char rbt_fpga_sim_id[RBT_INPUT_LENGTH]={
+	0x11,0x11,0x11,0x11,0x11,0x11,
+	0x21,0x21,0x21,
+	0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,
+	};
+#define RBT_FPGA_READ_ID(dinfo, offset)		rbt_fpga_sim_id[RBT_INPUT_OFFEND-(offset)]
+#else
+#define RBT_FPGA_READ_ID(dinfo, offset)		rbt_fpga_readb((dinfo),(unsigned int)(offset))
+#endif
+
 static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 {
 	int off;
@@ -1301,10 +1320,13 @@ static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 	uint8_t *id = info->excard.id;
 	const struct excard_info *cinfo;
 
+	//clear output memory
+	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, RBT_OUTPUT_LENGTH);
+	memset(info->shadow_output, 0xff, RBT_OUTPUT_LENGTH);
 	msleep(2);//wait for id update
 
 	for(off=RBT_INPUT_OFFEND; off>=RBT_INPUT_OFFSET;id++){
-		v = rbt_fpga_readb(info,(unsigned int)off);
+		v = RBT_FPGA_READ_ID(info,off);
 		if(v==0xff || v==0|| v==0xcc)	//to do??
 			break;
 
