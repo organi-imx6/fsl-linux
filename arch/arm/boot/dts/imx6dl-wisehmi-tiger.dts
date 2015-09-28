@@ -37,3 +37,27 @@
 &usbotg {
 	status = "okay";
 };
+
+&tw9990 {
+	pdn-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+	rstb-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog_tiger>;
+
+	imx6dl-wisehmi-tiger {
+		pinctrl_hog_tiger: hoggrp {
+			fsl,pins = <
+				/* PDN */
+				MX6QDL_PAD_SD1_CMD__GPIO1_IO18           0x80000000
+				/* RSTB */
+				MX6QDL_PAD_GPIO_7__GPIO1_IO07            0x80000000
+				/* INTREQ */
+				MX6QDL_PAD_SD1_DAT3__GPIO1_IO21          0x80000000
+				/* MPOUT */
+				MX6QDL_PAD_SD1_DAT2__GPIO1_IO19          0x80000000
+			>;
+		};
+	};
+};

@@ -1,0 +1,73 @@
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-wisehmi-dev.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Molihua Board";
+	compatible = "autorock,imx6dl-wisehmi-molihua", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+};
+
+&mxcfb1 {
+	disp_dev = "lcd";
+	mode_str = "LQ101K5DZ01";
+	interface_pix_fmt = "BGR24";
+};
+
+&ldb {
+	status = "disabled";
+};
+
+&lcd {
+	status = "okay";
+};
+
+
+&i2c3 {
+	status = "okay";
+};
+
+&video0 {
+	status = "okay";
+};
+
+
+&uart3 {
+	status = "okay";
+};
+
+&usbotg {
+	status = "okay";
+};
+
+&ssi1 {
+	status = "okay";
+};
+
+&audmux {
+	status = "okay";
+};
+
+&tw9990 {
+	pdn-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+	rstb-gpios = <&gpio3 22 GPIO_ACTIVE_LOW>;
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog_molihua>;
+
+	imx6dl-wisehmi-molihua {
+		pinctrl_hog_molihua: hoggrp {
+			fsl,pins = <
+				/* PDN */
+				MX6QDL_PAD_EIM_D21__GPIO3_IO21          0x80000000
+				/* RSTB */
+				MX6QDL_PAD_EIM_D22__GPIO3_IO22          0x80000000
+				/* INTREQ */
+				MX6QDL_PAD_EIM_D28__GPIO3_IO28          0x80000000
+				/* MPOUT */
+				MX6QDL_PAD_EIM_D29__GPIO3_IO29          0x80000000
+			>;
+		};
+	};
+};
