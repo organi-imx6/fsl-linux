@@ -59,6 +59,8 @@
 #define GET_EXCARDID_ID(x)	(((x)>>4)&0xf)
 #define GET_EXCARDID_VER(x)	((x)&0xf)
 
+#define RBT_SLCON_CHANNEL(c, n)	(c)<<((n)*3)
+
 #define RBT_MAX_AIO_NUM		32
 #define PULSE_CH_NUM		8
 #define MAX_EXCARD_NUM		8
@@ -158,14 +160,38 @@ struct excard_info{
 	const char *name;
 	uint8_t	id;
 	uint8_t	size;
-	void (*newcard)(struct rbt_info*, unsigned int);
+	void (*newcard)(struct rbt_info*, unsigned int, unsigned int);
 	void (*read_dio)(char*, char*, unsigned int*);
 	void (*write_dio)(char*, char*, unsigned int*);
 	int (*read_aio)(char*, int32_t*);
 	int (*write_aio)(char*, int32_t*);
 };
 
-static void newcard_saxis(struct rbt_info *info, unsigned int byte_off)
+static inline uint8_t rbt_fpga_readb(struct rbt_info *info,
+		unsigned int off)
+{
+	return __raw_readb(info->iobase + off);
+}
+
+static inline void rbt_fpga_writeb(struct rbt_info *info,
+		uint8_t val, unsigned int off)
+{
+	__raw_writeb(val, info->iobase + off);
+}
+
+static inline void rbt_fpga_writew(struct rbt_info *info,
+		uint16_t val, unsigned int off)
+{
+	__raw_writew(val, info->iobase + off);
+}
+
+static inline uint16_t rbt_fpga_readw(struct rbt_info *info,
+		unsigned int off)
+{
+	return __raw_readw(info->iobase + off);
+}
+
+static void newcard_saxis(struct rbt_info *info, unsigned int byte_off, unsigned int index)
 {
 	struct excard_data *excard = &info->excard;
 
@@ -285,7 +311,7 @@ static int wedrobot_write_aio(char *target, int32_t *buf)
 	return 4;
 }
 
-static void newcard_wedrobot(struct rbt_info *info, unsigned int byte_off)
+static void newcard_wedrobot(struct rbt_info *info, unsigned int byte_off, unsigned int index)
 {
 	int32_t buf[]={0,0,0,0};
 
@@ -306,6 +332,21 @@ static void io_write_dio(char *target,
 {
 	get_bits(target, buf, *bitoff, 32);
 	*bitoff+=32;
+}
+
+static void newcard_eth_yaskawa(struct rbt_info *info, unsigned int byte_off, unsigned int index)
+{
+	uint16_t v;
+
+	if(index!=1 && index!=2){
+		dev_warn(info->dev, "ethernet yaskawa board index(%d) must be 1 or 2", index);
+		return;
+	}
+	index--;
+	v = rbt_fpga_readw(info,RBT_SLCON_OFFSET);
+	v &= ~RBT_SLCON_CHANNEL(7, index);
+	v |= RBT_SLCON_CHANNEL(2, index);
+	rbt_fpga_writew(info,v,RBT_SLCON_OFFSET);
 }
 
 static const struct excard_info excard_info_table[]={
@@ -349,32 +390,9 @@ static const struct excard_info excard_info_table[]={
 		.name = "ethernet & yaskawa bus",
 		.id = 6,
 		.size = 1,
+		.newcard = newcard_eth_yaskawa,
 	},
 };
-
-static inline uint8_t rbt_fpga_readb(struct rbt_info *info,
-		unsigned int off)
-{
-	return __raw_readb(info->iobase + off);
-}
-
-static inline void rbt_fpga_writeb(struct rbt_info *info,
-		uint8_t val, unsigned int off)
-{
-	__raw_writeb(val, info->iobase + off);
-}
-
-static inline void rbt_fpga_writew(struct rbt_info *info,
-		uint16_t val, unsigned int off)
-{
-	__raw_writew(val, info->iobase + off);
-}
-
-static inline uint16_t rbt_fpga_readw(struct rbt_info *info,
-		unsigned int off)
-{
-	return __raw_readw(info->iobase + off);
-}
 
 inline fpga_pulse_t* GetFreePulseBuffer(struct rbt_info *info)
 {
@@ -1319,13 +1337,14 @@ static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 	uint8_t v;
 	uint8_t *id = info->excard.id;
 	const struct excard_info *cinfo;
+	int index=0;
 
 	//clear output memory
 	memset_io(info->iobase+RBT_OUTPUT_OFFSET, 0xff, RBT_OUTPUT_LENGTH);
 	memset(info->shadow_output, 0xff, RBT_OUTPUT_LENGTH);
 	msleep(2);//wait for id update
 
-	for(off=RBT_INPUT_OFFEND; off>=RBT_INPUT_OFFSET;id++){
+	for(off=RBT_INPUT_OFFEND; off>=RBT_INPUT_OFFSET;id++,index++){
 		v = RBT_FPGA_READ_ID(info,off);
 		if(v==0xff || v==0|| v==0xcc)	//to do??
 			break;
@@ -1341,11 +1360,11 @@ static void __init rbt_fpga_get_cardid(struct rbt_info *info)
 		if(cinfo->id==0)
 			break;
 
-		dev_info(info->dev, "find %s card version %d\n",
-			cinfo->name, GET_EXCARDID_VER(v));
+		dev_info(info->dev, "find %s card(%d) version %d\n",
+			cinfo->name, index, GET_EXCARDID_VER(v));
 		off-=cinfo->size;
 		if(off>0 && cinfo->newcard)
-			cinfo->newcard(info, (unsigned int)off+1-RBT_INPUT_OFFSET);
+			cinfo->newcard(info, (unsigned int)off+1-RBT_INPUT_OFFSET, index);
 	}
 }
 
