@@ -386,6 +386,17 @@ config RBT_FPGA
 	help
 	  This option enables device driver support for the RBT FPGA.
 
+config JL098
+	tristate "Yaskawa JL098 support"
+	help
+	  This option enables device driver support for the Yaskawa JL098.
+
+config JL101
+	tristate "Yaskawa JL101 support"
+	help
+	  This option enables device driver support for the Yaskawa JL101.
+
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
