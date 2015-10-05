@@ -904,7 +904,7 @@ static int flexcan_open(struct net_device *dev)
 	if (err)
 		goto out;
 
-	err = request_irq(dev->irq, flexcan_irq, IRQF_SHARED, dev->name, dev);
+	err = request_irq(dev->irq, flexcan_irq, IRQF_SHARED|IRQF_NO_THREAD, dev->name, dev);
 	if (err)
 		goto out_close;
 
