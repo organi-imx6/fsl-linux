@@ -266,8 +266,8 @@ static int wedrobot_read_aio(char *src, int32_t *buf)
 {
 	uint32_t v=0;
 	memcpy(&v, src+2, 3);
-	*buf++ = ((v&0xfff)-0x800)<<20;
-	*buf = ((v>>12)-0x800)<<20;
+	*buf++ = (0x7ff-(v&0xfff))<<20;
+	*buf = (0x7ff-(v>>12))<<20;
 	return 2;
 }
 
@@ -1395,6 +1395,7 @@ static int __init rbt_fpga_probe(struct platform_device *pdev)
 		dev_err(info->dev, "Can't find RBT FPGA Chip ret=0x%x!\n", v);
 		goto fail_no_rbt_fpga;
 	}
+	rbt_fpga_writew(info, 0, RBT_SYS_OFFSET);
 
 	err = rbt_fpga_init_pulse(info);
 	if(err<0)
