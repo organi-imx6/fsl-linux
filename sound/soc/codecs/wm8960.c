@@ -895,6 +895,10 @@ static int wm8960_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		reg = snd_soc_read(codec, WM8960_CLOCK2) & 0x03f;
 		snd_soc_write(codec, WM8960_CLOCK2, reg | div);
 		break;
+	case WM8960_BCLKDIV:
+		reg = snd_soc_read(codec, WM8960_CLOCK2) & 0x01f0;
+		snd_soc_write(codec, WM8960_CLOCK2, reg | div);
+		break;
 	case WM8960_TOCLKSEL:
 		reg = snd_soc_read(codec, WM8960_ADDCTL1) & 0x1fd;
 		snd_soc_write(codec, WM8960_ADDCTL1, reg | div);

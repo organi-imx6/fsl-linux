@@ -128,6 +128,8 @@ static int imx_hifi_hw_params(struct snd_pcm_substream *substream,
 					if (sysclk == bclk * bclk_divs[k] / 10) {
 						snd_soc_dai_set_sysclk(codec_dai, WM8960_SYSCLK_MCLK, sysclk, 0);
 						snd_soc_dai_set_clkdiv(codec_dai, WM8960_SYSCLKDIV, i << 1);
+						snd_soc_dai_set_clkdiv(codec_dai, WM8960_DACDIV, j << 3);
+						snd_soc_dai_set_clkdiv(codec_dai, WM8960_BCLKDIV, k);
 						return 0;
 					}
 			}
@@ -151,6 +153,8 @@ static int imx_hifi_hw_params(struct snd_pcm_substream *substream,
 					/* Set codec sysclk */
 					snd_soc_dai_set_sysclk(codec_dai, WM8960_SYSCLK_PLL, sysclk, 0);
 					snd_soc_dai_set_clkdiv(codec_dai, WM8960_SYSCLKDIV, i << 1);
+					snd_soc_dai_set_clkdiv(codec_dai, WM8960_DACDIV, j << 3);
+					snd_soc_dai_set_clkdiv(codec_dai, WM8960_BCLKDIV, k);
 					return 0;
 				}
 			}
