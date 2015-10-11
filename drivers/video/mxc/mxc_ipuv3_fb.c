@@ -2451,7 +2451,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 		ret = mxcfb_register(fbi);
 		if (ret < 0)
 			goto mxcfb_register_failed;
-		show_splash_autorock(fbi);
+		(void)show_splash_autorock(fbi);
 
 		ipu_disp_set_global_alpha(mxcfbi->ipu, mxcfbi->ipu_ch,
 					  true, 0x80);

@@ -1,0 +1,29 @@
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-wisehmi-dev.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo Wise HMI Molihua Board";
+	compatible = "autorock,imx6dl-wisehmi-peony", "autorock,imx6qdl-wisehmi", "fsl,imx6dl";
+};
+
+&mxcfb1 {
+	disp_dev = "ldb";
+	mode_str = "SHARP_LQ123B5LW";
+	interface_pix_fmt = "BGR24";
+};
+
+&ldb {
+	status = "okay";
+	lvds-channel@0 {
+		display-timings {
+			native-mode = <&SHARP_LQ123B5LW>;
+		};
+	};
+};
+
+&lcd {
+	status = "disabled";
+};
+

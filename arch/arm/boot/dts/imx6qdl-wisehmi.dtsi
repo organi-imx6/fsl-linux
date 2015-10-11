@@ -96,6 +96,17 @@
 				hsync-len = <60>;
 				vsync-len = <10>;
 			};
+			SHARP_LQ123B5LW: timing4 {
+				clock-frequency = <54150000>;
+				hactive = <1440>;
+				vactive = <540>;
+				hback-porch = <100>;
+				hfront-porch = <86>;
+				vback-porch = <8>;
+				vfront-porch = <7>;
+				hsync-len = <5>;
+				vsync-len = <2>;
+			};
 		};
 	};
 };

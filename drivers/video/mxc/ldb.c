@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+#include <video/of_display_timing.h>
 #include "mxc_dispdrv.h"
 
 #define DRIVER_NAME	"ldb"
@@ -815,7 +816,7 @@ static int ldb_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		ret = of_get_videomode(child, &chan->vm, 0);
+		ret = of_get_videomode(child, &chan->vm, OF_USE_NATIVE_MODE);
 		if (ret)
 			return -EINVAL;
 
