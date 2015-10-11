@@ -29,6 +29,103 @@
 		mux-ext-port = <3>;
 		codec-master;
 	};
+
+	display-timings {
+		/*LVDS lcd*/
+		SHARP_LQ123K1LG03:lvds_1280x480_53M{
+			clock-frequency = <53172000>;
+			hactive = <1280>;
+			vactive = <480>;
+			hback-porch = <268>;
+			hfront-porch = <70>;
+			vback-porch = <10>;
+			vfront-porch = <10>;
+			hsync-len = <70>;
+			vsync-len = <25>;
+		};
+		CHUNGHWA_CLAA088WA01XN:lvds_1280x480_45M{
+			/* 8.8” color TFT-LCD */
+			clock-frequency = <45000000>;
+			hactive = <1280>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <73>;
+			vback-porch = <20>;
+			vfront-porch = <23>;
+			hsync-len = <20>;
+			vsync-len = <10>;
+		};
+		HITACHI_TX18D45VM2BAA:lvds_800x480_32M{
+			clock-frequency = <32321000>;
+			hactive = <800>;
+			vactive = <480>;
+			hback-porch = <100>;
+			hfront-porch = <100>;
+			vback-porch = <10>;
+			vfront-porch = <10>;
+			hsync-len = <36>;
+			vsync-len = <20>;
+		};
+		KOE_TX31D200VM0BAA:lvds_1280x480_43M{
+			/* need switch to JEIDA mode */
+			clock-frequency = <43200000>;
+			hactive = <1280>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <40>;
+			vback-porch = <20>;
+			vfront-porch = <30>;
+			hsync-len = <60>;
+			vsync-len = <10>;
+		};
+		SHARP_LQ123B5LW:lvds_1440x540_54M{
+			clock-frequency = <54150000>;
+			hactive = <1440>;
+			vactive = <540>;
+			hback-porch = <100>;
+			hfront-porch = <86>;
+			vback-porch = <8>;
+			vfront-porch = <7>;
+			hsync-len = <5>;
+			vsync-len = <2>;
+		};
+
+		/*TTL lcd*/
+		TX26D25VM2BAA:ttl_800x256_20M{
+			clock-frequency = <20000000>;
+			hactive = <800>;
+			vactive = <256>;
+			hback-porch = <80>;
+			hfront-porch = <160>;
+			vback-porch = <20>;
+			vfront-porch = <30>;
+			hsync-len = <16>;
+			vsync-len = <10>;
+		};
+		HSD070IDW1:ttl_800x480_30M{
+			clock-frequency = <30000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hback-porch = <40>;
+			hfront-porch = <40>;
+			vback-porch = <13>;
+			vfront-porch = <29>;
+			hsync-len = <48>;
+			vsync-len = <3>;
+		};
+		LQ101K5DZ01:ttl_1280x424_44M{
+			clock-frequency = <44240000>;
+			hactive = <1280>;
+			vactive = <424>;
+			hback-porch = <42>;
+			hfront-porch = <194>;
+			vback-porch = <15>;
+			vfront-porch = <35>;
+			hsync-len = <20>;
+			vsync-len = <8>;
+			pixelclk-active = <0>;
+		};
+	};
 };
 
 &ssi1 {
@@ -48,106 +145,10 @@
 		crtc = "ipu1-di0";
 		primary;
 		status = "okay";
-
-		display-timings {
-			SHARP_LQ123K1LG03: timing0 {
-				clock-frequency = <53172000>;
-				hactive = <1280>;
-				vactive = <480>;
-				hback-porch = <268>;
-				hfront-porch = <70>;
-				vback-porch = <10>;
-				vfront-porch = <10>;
-				hsync-len = <70>;
-				vsync-len = <25>;
-			};
-			CHUNGHWA_CLAA088WA01XN: timing1 {
-				/* 8.8” color TFT-LCD */
-				clock-frequency = <45000000>;
-				hactive = <1280>;
-				vactive = <480>;
-				hback-porch = <40>;
-				hfront-porch = <73>;
-				vback-porch = <20>;
-				vfront-porch = <23>;
-				hsync-len = <20>;
-				vsync-len = <10>;
-			};
-			HITACHI_TX18D45VM2BAA: timing2 {
-				clock-frequency = <32321000>;
-				hactive = <800>;
-				vactive = <480>;
-				hback-porch = <100>;
-				hfront-porch = <100>;
-				vback-porch = <10>;
-				vfront-porch = <10>;
-				hsync-len = <36>;
-				vsync-len = <20>;
-			};
-			KOE_TX31D200VM0BAA: timing3 {
-				/* need switch to JEIDA mode */
-				clock-frequency = <43200000>;
-				hactive = <1280>;
-				vactive = <480>;
-				hback-porch = <40>;
-				hfront-porch = <40>;
-				vback-porch = <20>;
-				vfront-porch = <30>;
-				hsync-len = <60>;
-				vsync-len = <10>;
-			};
-			SHARP_LQ123B5LW: timing4 {
-				clock-frequency = <54150000>;
-				hactive = <1440>;
-				vactive = <540>;
-				hback-porch = <100>;
-				hfront-porch = <86>;
-				vback-porch = <8>;
-				vfront-porch = <7>;
-				hsync-len = <5>;
-				vsync-len = <2>;
-			};
-		};
 	};
 };
 
 &lcd {
-	display-timings {
-		TX26D25VM2BAA {
-			clock-frequency = <20000000>;
-			hactive = <800>;
-			vactive = <256>;
-			hback-porch = <80>;
-			hfront-porch = <160>;
-			vback-porch = <20>;
-			vfront-porch = <30>;
-			hsync-len = <16>;
-			vsync-len = <10>;
-		};
-		HSD070IDW1-G {
-			clock-frequency = <30000000>;
-			hactive = <800>;
-			vactive = <480>;
-			hback-porch = <40>;
-			hfront-porch = <40>;
-			vback-porch = <13>;
-			vfront-porch = <29>;
-			hsync-len = <48>;
-			vsync-len = <3>;
-		};
-		LQ101K5DZ01 {
-			clock-frequency = <44240000>;
-			hactive = <1280>;
-			vactive = <424>;
-			hback-porch = <42>;
-			hfront-porch = <194>;
-			vback-porch = <15>;
-			vfront-porch = <35>;
-			hsync-len = <20>;
-			vsync-len = <8>;
-			pixelclk-active = <0>;
-		};
-	};
 };
 
 &i2c3 {

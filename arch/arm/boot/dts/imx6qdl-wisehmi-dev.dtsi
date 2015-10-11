@@ -27,11 +27,8 @@
 
 &ldb {
 	status = "okay";
-
 	lvds-channel@0 {
-		display-timings {
-			native-mode = <&SHARP_LQ123K1LG03>;
-		};
+		native-mode = <&SHARP_LQ123K1LG03>;
 	};
 };
 

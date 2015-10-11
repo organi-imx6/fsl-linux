@@ -10,12 +10,13 @@
 
 &mxcfb1 {
 	disp_dev = "ldb";
-	mode_str = "CHUNGHWA_CLAA088WA01XN";
-	interface_pix_fmt = "RGB24";
 };
 
 &ldb {
 	status = "okay";
+	lvds-channel@0 {
+		native-mode = <&CHUNGHWA_CLAA088WA01XN>;
+	};
 };
 
 &lcd {

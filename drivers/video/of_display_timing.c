@@ -58,7 +58,7 @@ static int parse_timing_property(const struct device_node *np, const char *name,
 	return ret;
 }
 
-char* fb_disp_store_devname(struct device_node *np)
+static char* fb_disp_store_devname(void)
 {
 	char* store_disp_name = NULL;
 	struct device_node *timings_np;
@@ -66,7 +66,7 @@ char* fb_disp_store_devname(struct device_node *np)
 	struct device_node *entry;
 	int i = 0;
 
-	timings_np = of_find_node_by_name(np, "display-timings");
+	timings_np = of_find_node_by_path("/display-timings");
 	num_timings = of_get_child_count(timings_np);
 	store_disp_name = kmalloc(num_timings*DISP_DEV_NAME_MAX_LENGTH, GFP_KERNEL);
 	for_each_child_of_node(timings_np, entry) {
@@ -77,7 +77,7 @@ char* fb_disp_store_devname(struct device_node *np)
 	return store_disp_name; 
 }
 
-struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int* size)
+struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int *size, int *index)
 {
 	struct display_timings* disp = NULL;
 	int i = 0;
@@ -97,7 +97,7 @@ struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int
 		pr_err("of_get_display_timings_autorock fb_vm is NULL\r\n");
 		return NULL;
 	}
-	store_disp_name = fb_disp_store_devname(np);
+	store_disp_name = fb_disp_store_devname();
 	for(i = 0; i < disp->num_timings; i ++) {
 		videomode_from_timing(disp->timings[i], &vm);
 		fb_videomode_from_videomode(&vm, (fb_vm + i));
@@ -107,6 +107,7 @@ struct fb_videomode* of_get_display_timings_autorock(struct device_node *np, int
 			(fb_vm + i)->sync |= FB_SYNC_CLK_LAT_FALL;
 		(fb_vm + i)->name = (store_disp_name + (i*DISP_DEV_NAME_MAX_LENGTH));
 	}
+	*index = disp->native_mode;
 	display_timings_release(disp);
 	return fb_vm;
 }
@@ -206,7 +207,7 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 		return NULL;
 	}
 
-	timings_np = of_get_child_by_name(np, "display-timings");
+	timings_np = of_find_node_by_path("/display-timings");
 	if (!timings_np) {
 		pr_err("%s: could not find display-timings node\n",
 			of_node_full_name(np));
@@ -220,10 +221,10 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 		goto dispfail;
 	}
 
-	entry = of_parse_phandle(timings_np, "native-mode", 0);
+	entry = of_parse_phandle(np, "native-mode", 0);
 	/* assume first child as native mode if none provided */
-	if (!entry)
-		entry = of_get_next_child(np, NULL);
+/*	if (!entry)
+		entry = of_get_next_child(np, NULL);*/
 	/* if there is no child, it is useless to go on */
 	if (!entry) {
 		pr_err("%s: no timing specifications given\n",

@@ -2,7 +2,6 @@
 
 &mxcfb1 {
 	disp_dev = "lcd";
-	mode_str = "HSD070IDW1-G";
 	interface_pix_fmt = "BGR24";
 };
 
@@ -12,4 +11,5 @@
 
 &lcd {
 	status = "okay";
+	native-mode = <&HSD070IDW1>;
 };

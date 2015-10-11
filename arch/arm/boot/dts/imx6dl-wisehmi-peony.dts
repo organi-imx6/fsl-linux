@@ -10,16 +10,13 @@
 
 &mxcfb1 {
 	disp_dev = "ldb";
-	mode_str = "SHARP_LQ123B5LW";
-	interface_pix_fmt = "BGR24";
+/*	interface_pix_fmt = "RGB24";*/
 };
 
 &ldb {
 	status = "okay";
 	lvds-channel@0 {
-		display-timings {
-			native-mode = <&SHARP_LQ123B5LW>;
-		};
+		native-mode = <&SHARP_LQ123B5LW>;
 	};
 };
 
