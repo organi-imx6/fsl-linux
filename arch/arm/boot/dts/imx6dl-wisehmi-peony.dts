@@ -17,6 +17,7 @@
 	status = "okay";
 	lvds-channel@0 {
 		native-mode = <&SHARP_LQ123B5LW>;
+		fsl,data-mapping = "jeida";
 	};
 };
 
