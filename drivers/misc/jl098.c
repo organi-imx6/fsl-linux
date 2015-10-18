@@ -2203,7 +2203,7 @@ UINT			err_axis;							/* Staion # which error occured */
 static int mst_init(void);						/* Initialize MECHATROLINK communicaiton(Setup JL-098) */
 /* Send/Recieve Link data in cyclic communication */
 static int mst_exchange(USHORT	sbuff[][LINK_SIZE], USHORT rbuff[][LINK_SIZE]);
-void Set_st_addr(UCHAR* pst);			/* Set Station addresses */
+static void Set_st_addr(UCHAR* pst);			/* Set Station addresses */
 
 /****************************************************************************/
 /*                                                                          */
@@ -2382,7 +2382,7 @@ static int mst_exchange(USHORT	sbuff[][LINK_SIZE], USHORT rbuff[][LINK_SIZE])
 /*      Setting all servodrive addresses or 41H - 41H + SLV_ST_MAX          */
 /*                                                                          */
 /****************************************************************************/
-void Set_st_addr(UCHAR* pst)
+static void Set_st_addr(UCHAR* pst)
 {
 	int	ch;
 
@@ -2408,11 +2408,9 @@ void Set_st_addr(UCHAR* pst)
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 
-#define PULSE_CH_NUM		16
+#define JL098_BUFFER_SIZE	4
 
-#define PULSE_BUFFER_SIZE	4
-
-#define CYCLE_INC(d)	(((d)+1)&(PULSE_BUFFER_SIZE-1))
+#define CYCLE_INC(d)	(((d)+1)&(JL098_BUFFER_SIZE-1))
 #define IS_CYCLE_BUFFER_FULL(buffer)	(CYCLE_INC((buffer).head) == ((buffer).tail))
 #define IS_CYCLE_BUFFER_EMPTY(buffer)	((buffer).head == (buffer).tail)
 
@@ -2434,10 +2432,21 @@ void Set_st_addr(UCHAR* pst)
 #define wake_up_interruptible(x)	swait_wake_interruptible(x)
 #endif
 
-typedef uint16_t jl098_data_t[SLV_ST_MAX][LINK_SIZE];
+typedef union {
+	uint16_t data[LINK_SIZE];
+	struct{
+		uint8_t cmd;
+		uint8_t alarm;
+		uint16_t status;
+		uint8_t pad[11];
+		uint8_t wdt;
+	};
+}jl098_chdata_t;
+
+typedef jl098_chdata_t jl098_data_t[SLV_ST_MAX];
 
 typedef struct jl098_cyclebuf{
-	jl098_data_t data[PULSE_BUFFER_SIZE];
+	jl098_data_t data[JL098_BUFFER_SIZE];
 	int head;
 	int tail;
 }jl098_cyclebuf_t;
@@ -2460,6 +2469,8 @@ struct jl098_info {
 	unsigned int interrupt_lost;
 	unsigned int pulse_queue_break;
 	struct miscdevice miscdev;
+	uint8_t alarm_code[SLV_ST_MAX];
+	uint16_t status_code[SLV_ST_MAX];
 };
 
 static struct jl098_info *rbt_info_p;
@@ -2476,7 +2487,7 @@ static inline uint16_t jl098_readw(struct jl098_info *info,
 	return __raw_readw(info->iobase + off);
 }
 
-static inline jl098_data_t* GetFreeBuffer(jl098_cyclebuf_t *buff)
+static inline jl098_data_t* AllocFreeBuffer(jl098_cyclebuf_t *buff)
 {
 	jl098_data_t* pdata;
 
@@ -2485,8 +2496,24 @@ static inline jl098_data_t* GetFreeBuffer(jl098_cyclebuf_t *buff)
 	}
 
 	pdata = &buff->data[buff->head];
-	buff->head = CYCLE_INC(buff->head);
 
+	return pdata;
+}
+
+static inline void PushBuffer(jl098_cyclebuf_t *buff)
+{
+	buff->head = CYCLE_INC(buff->head);
+}
+
+static inline jl098_data_t* GetFreeBuffer(jl098_cyclebuf_t *buff)
+{
+	jl098_data_t* pdata = AllocFreeBuffer(buff);
+
+	if(pdata==NULL){
+		return NULL;
+	}
+
+	PushBuffer(buff);
 	return pdata;
 }
 
@@ -2506,33 +2533,19 @@ static inline jl098_data_t* GetBufferData(jl098_cyclebuf_t *buff)
 
 /*
  * /sys/devices/platform/rbt_fpga.N
- *   /freq          read-write pwm output frequency (0 = disable output)
- *   /pulse	   write pulse, 16bit * channel_number
  */
-static ssize_t jl098_get_freq(struct device *dev,
+static ssize_t jl098_get_status(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct jl098_info *info = platform_get_drvdata(pdev);
+	int i,n=0;
 
-	//return sprintf(buf, "%ld\n", RBT_CLK/(pprd+1)/(tprd+1));
-	return sprintf(buf, "todo");
-}
-
-static ssize_t jl098_set_freq(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct jl098_info *info = platform_get_drvdata(pdev);
-
-	unsigned long freq;
-	int err;
-
-	err = strict_strtol(buf, 10, &freq);
-	if (err)
-		return -EINVAL;
-
-	return count;
+	for(i=0;i<SLV_ST_MAX;i++){
+		n += sprintf(buf+n, "%d status:0x%x, last alarm: 0x%x\n", 
+			i, info->status_code[i], info->alarm_code[i]);
+	}
+	return n;
 }
 
 static ssize_t jl098_get_address(struct device *dev,
@@ -2622,14 +2635,14 @@ static ssize_t jl098_errordump(struct device *dev,
 		info->interrupt_lost, info->pulse_queue_break, info->max_break_time);
 }
 
-static DEVICE_ATTR(freq, S_IWUSR | S_IRUGO,jl098_get_freq, jl098_set_freq);
+static DEVICE_ATTR(status, S_IWUSR | S_IRUGO,jl098_get_status, NULL);
 static DEVICE_ATTR(address, S_IWUSR | S_IRUGO, jl098_get_address, jl098_set_address);
 static DEVICE_ATTR(data, S_IWUSR | S_IRUGO, jl098_get_data, jl098_set_data);
 static DEVICE_ATTR(regdump, S_IWUSR | S_IRUGO, jl098_regdump, NULL);
 static DEVICE_ATTR(error, S_IWUSR | S_IRUGO, jl098_errordump, NULL);
 
 static struct attribute *jl098_attrs[] = {
-	&dev_attr_freq.attr,
+	&dev_attr_status.attr,
 	&dev_attr_address.attr,
 	&dev_attr_data.attr,
 	&dev_attr_regdump.attr,
@@ -2644,8 +2657,12 @@ static const struct attribute_group jl098_sysfs_files = {
 static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 {
 	unsigned long flags;
-	uint16_t rbtsys;
 	jl098_data_t *sdata, *rdata;
+	jl098_chdata_t *ps, *pr;
+	uint8_t alarm;
+	int i, nNop;
+	static uint8_t rsn[SLV_ST_MAX], mn;
+
 	static jl098_data_t sdata_nop, rdata_buff;
 
 	raw_spin_lock_irqsave(&info->lock,flags);
@@ -2658,13 +2675,38 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 			info->max_break_time = info->break_time;
 	}
 
-	rdata = GetFreeBuffer(&info->rbuff);
+	rdata = AllocFreeBuffer(&info->rbuff);
 	if(rdata==NULL)
 		rdata = &rdata_buff;
 
-	mst_exchange(*sdata, *rdata);
+	//update wdt
+	ps=(jl098_chdata_t *)sdata;
+	for(i=0;i<SLV_ST_MAX;i++){
+		ps[i].wdt = rsn[i]|mn;
+	}
+	mn=(mn+1)&0xf;
+	
+	mst_exchange((uint16_t (*)[8])sdata, (uint16_t (*)[8])rdata);
 
-	wake_up_interruptible(&info->wq);
+	pr=(jl098_chdata_t *)rdata;
+	nNop=0;
+
+	for(i=0;i<SLV_ST_MAX;i++){
+		rsn[i] = pr[i].wdt&0xf0;
+		if(pr[i].cmd==0){//nop response
+			nNop++;
+		}
+		info->status_code[i] = pr[i].data[1];
+		alarm = pr[i].data[0]>>8;
+		if(alarm!=0)
+			info->alarm_code[i] = alarm;
+	}
+
+	if(nNop!=i){
+		PushBuffer(&info->rbuff);
+		wake_up_interruptible(&info->wq);
+	}
+
 	if(info->break_time){
 		dev_info(info->dev, "pulse queue %d break %d tick\n", ++info->pulse_queue_break, info->break_time);
 		info->break_time = 0;
@@ -2702,7 +2744,7 @@ static ssize_t jl098_data_write(struct file *file, const char __user *buf,
 		return count;
 	}
 
-	info->pulse_running=1;
+//	info->pulse_running=1;
 
 	copy_from_user(data, buf, count);
 	raw_spin_unlock_irqrestore(&info->lock,flags);
@@ -2724,17 +2766,24 @@ static ssize_t jl098_data_read(struct file *file,
 		return -EINVAL;
 	}
 
-	ret = wait_event_interruptible(info->wq, IS_CYCLE_BUFFER_EMPTY(info->rbuff));
-	if(ret<0)
-		return ret;
+	if(file->f_flags & O_NONBLOCK){
+		if(IS_CYCLE_BUFFER_EMPTY(info->rbuff))
+			return -EBUSY;
+	}
+	else{
+		ret = wait_event_interruptible(info->wq, IS_CYCLE_BUFFER_EMPTY(info->rbuff));
+		if(ret<0)
+			return ret;
+	}
 
 	raw_spin_lock_irqsave(&info->lock,flags);
 
 	data = GetBufferData(&info->rbuff);
 	if(data==NULL){
 		raw_spin_unlock_irqrestore(&info->lock,flags);
-		dev_err(info->dev, "wait but buffer empty\n");
-		return count;
+		if(!(file->f_flags & O_NONBLOCK))
+			dev_err(info->dev, "wait but buffer empty\n");
+		return -EBUSY;
 	}
 
 	copy_to_user(buf, data, count);
