@@ -387,7 +387,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
-		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+		fsl,weim-cs-timing = <0x00610089 0x00000141 0x1c170020
 				0x00000000 0x1c3ca3ca 0x00000000>;
 		};
 	lan9221_1@2,1 {
@@ -406,7 +406,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
-		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+		fsl,weim-cs-timing = <0x00610089 0x00000141 0x1c170020
 				0x00000000 0x1c3ca3ca 0x00000000>;
 		};
 	jl098@2,2 {
@@ -419,7 +419,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
-		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+		fsl,weim-cs-timing = <0x00610089 0x00000141 0x1c170020
 				0x00000000 0x1c3ca3ca 0x00000000>;
 		};
 	jl101@2,3 {
@@ -432,7 +432,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		bank-width = <2>;
-		fsl,weim-cs-timing = <0x00610089 0x00000001 0x1c170020
+		fsl,weim-cs-timing = <0x00610089 0x00000141 0x1c170020
 				0x00000000 0x1c3ca3ca 0x00000000>;
 		};
 	CS3ram@3,0 {
