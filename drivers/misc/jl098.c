@@ -2660,7 +2660,7 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 	jl098_data_t *sdata, *rdata;
 	jl098_chdata_t *ps, *pr;
 	uint8_t alarm;
-	int i, nNop;
+	int i, nNop, rfull=0;
 	static uint8_t rsn[SLV_ST_MAX], mn;
 
 	static jl098_data_t sdata_nop, rdata_buff;
@@ -2676,8 +2676,10 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 	}
 
 	rdata = AllocFreeBuffer(&info->rbuff);
-	if(rdata==NULL)
+	if(rdata==NULL){
 		rdata = &rdata_buff;
+		rfull = 1;
+	}
 
 	//update wdt
 	ps=(jl098_chdata_t *)sdata;
@@ -2686,7 +2688,7 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 	}
 	mn=(mn+1)&0xf;
 	
-	mst_exchange((uint16_t (*)[8])sdata, (uint16_t (*)[8])rdata);
+	mst_exchange((uint16_t (*)[LINK_SIZE])sdata, (uint16_t (*)[LINK_SIZE])rdata);
 
 	pr=(jl098_chdata_t *)rdata;
 	nNop=0;
@@ -2702,10 +2704,10 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 			info->alarm_code[i] = alarm;
 	}
 
-	if(nNop!=i){
+	if(nNop!=i && !rfull){
 		PushBuffer(&info->rbuff);
-		wake_up_interruptible(&info->wq);
 	}
+	wake_up_interruptible(&info->wq);
 
 	if(info->break_time){
 		dev_info(info->dev, "pulse queue %d break %d tick\n", ++info->pulse_queue_break, info->break_time);
