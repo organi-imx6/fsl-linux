@@ -2449,6 +2449,7 @@ typedef struct jl098_cyclebuf{
 	jl098_data_t data[JL098_BUFFER_SIZE];
 	int head;
 	int tail;
+	wait_queue_head_t wq;
 }jl098_cyclebuf_t;
 
 struct jl098_info {
@@ -2462,7 +2463,6 @@ struct jl098_info {
 	int pulse_running;
 	unsigned int break_time;
 	unsigned int max_break_time;
-	wait_queue_head_t wq;
 	unsigned int irq;
 
 	unsigned int offset;
@@ -2689,6 +2689,7 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 	mn=(mn+1)&0xf;
 	
 	mst_exchange((uint16_t (*)[LINK_SIZE])sdata, (uint16_t (*)[LINK_SIZE])rdata);
+	wake_up_interruptible(&info->sbuff.wq);
 
 	pr=(jl098_chdata_t *)rdata;
 	nNop=0;
@@ -2706,8 +2707,8 @@ static irqreturn_t jl098_irq_handler(int irq, struct jl098_info *info)
 
 	if(nNop!=i && !rfull){
 		PushBuffer(&info->rbuff);
+		wake_up_interruptible(&info->rbuff.wq);
 	}
-	wake_up_interruptible(&info->wq);
 
 	if(info->break_time){
 		dev_info(info->dev, "pulse queue %d break %d tick\n", ++info->pulse_queue_break, info->break_time);
@@ -2733,7 +2734,7 @@ static ssize_t jl098_data_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 	}
 
-	ret = wait_event_interruptible(info->wq, !IS_CYCLE_BUFFER_FULL(info->sbuff));
+	ret = wait_event_interruptible(info->sbuff.wq, !IS_CYCLE_BUFFER_FULL(info->sbuff));
 	if(ret<0)
 		return ret;
 
@@ -2773,7 +2774,7 @@ static ssize_t jl098_data_read(struct file *file,
 			return -EBUSY;
 	}
 	else{
-		ret = wait_event_interruptible(info->wq, !IS_CYCLE_BUFFER_EMPTY(info->rbuff));
+		ret = wait_event_interruptible(info->rbuff.wq, !IS_CYCLE_BUFFER_EMPTY(info->rbuff));
 		if(ret<0)
 			return ret;
 	}
@@ -2862,7 +2863,8 @@ static int __init jl098_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	raw_spin_lock_init(&info->lock);
-	init_waitqueue_head(&info->wq);
+	init_waitqueue_head(&info->sbuff.wq);
+	init_waitqueue_head(&info->rbuff.wq);
 	info->dev=&pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
