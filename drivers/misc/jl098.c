@@ -2771,7 +2771,7 @@ static ssize_t jl098_data_read(struct file *file,
 			return -EBUSY;
 	}
 	else{
-		ret = wait_event_interruptible(info->wq, IS_CYCLE_BUFFER_EMPTY(info->rbuff));
+		ret = wait_event_interruptible(info->wq, !IS_CYCLE_BUFFER_EMPTY(info->rbuff));
 		if(ret<0)
 			return ret;
 	}
