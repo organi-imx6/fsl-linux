@@ -1,19 +1,19 @@
 #include "imx6dl-wisehmi.dts"
 
 &mxcfb1 {
-	disp_dev = "lcd";
-	mode_str = "LQ101K5DZ01";
-	interface_pix_fmt = "BGR24";
+	disp_dev = "ldb";
+	mode_str = "CHUNGHWA_CLAA088WA01XN";
+	interface_pix_fmt = "RGB24";
 };
 
 &ldb {
-	status = "disabled";
+	status = "okay";
 };
 
 &lcd {
-	status = "okay";
+	status = "disable";
 };
 
 &uart3 {
-	status = "okay";
+       status = "okay";
 };
