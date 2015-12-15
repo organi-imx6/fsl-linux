@@ -1,0 +1,14 @@
+#include "imx6q-wisehmi.dts"
+
+&mxcfb1 {
+	mode_str = "AUO_C123HAN01_1";
+};
+
+&ldb {
+	mode = "spl0";
+	status = "okay";
+};
+
+&lcd {
+	status = "disable";
+};
