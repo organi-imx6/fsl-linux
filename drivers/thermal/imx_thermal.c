@@ -55,14 +55,14 @@ enum imx_thermal_trip {
  * It defines the temperature in millicelsius for passive trip point
  * that will trigger cooling action when crossed.
  */
-#define IMX_TEMP_PASSIVE		85000
+#define IMX_TEMP_PASSIVE		125000
 #define IMX_TEMP_PASSIVE_COOL_DELTA	10000
 
 /*
  * The maximum die temperature on imx parts is 105C, let's give some cushion
  * for noise and possible temperature rise between measurements.
  */
-#define IMX_TEMP_CRITICAL		100000
+#define IMX_TEMP_CRITICAL		125000
 
 #define IMX_POLLING_DELAY		2000 /* millisecond */
 #define IMX_PASSIVE_DELAY		1000

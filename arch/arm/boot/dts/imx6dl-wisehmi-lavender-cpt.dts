@@ -1,0 +1,15 @@
+#include "imx6dl-wisehmi.dts"
+
+&mxcfb1 {
+	disp_dev = "lcd";
+	mode_str = "CLAA070LFA1_CW";
+	interface_pix_fmt = "BGR24";
+};
+
+&ldb {
+	status = "disabled";
+};
+
+&lcd {
+	status = "okay";
+};

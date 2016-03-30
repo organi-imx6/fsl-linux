@@ -139,6 +139,18 @@
 			vsync-len = <8>;
 			pixelclk-active = <0>;
 		};
+                CLAA070LFA1_CW {/* cpt 800x480 */
+                        clock-frequency = <33000000>;
+                        hactive = <800>;
+                        vactive = <480>;
+                        hback-porch = <16>;
+                        hfront-porch = <210>;
+                        vback-porch = <10>;
+                        vfront-porch = <22>;
+                        hsync-len = <30>;
+                        vsync-len = <13>;
+                        pixelclk-active = <0>;
+                };
 	};
 };
 
