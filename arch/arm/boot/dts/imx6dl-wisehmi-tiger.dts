@@ -1,0 +1,27 @@
+#include "imx6dl-wisehmi.dts"
+
+&mxcfb1 {
+	disp_dev = "lcd";
+	mode_str = "LQ101K5DZ01";
+	interface_pix_fmt = "BGR24";
+};
+
+&ldb {
+	status = "disabled";
+};
+
+&lcd {
+	status = "okay";
+};
+
+&ssi1 {
+    status = "okay";
+};
+
+&audmux {
+    status = "okay";
+};
+
+&i2c3 {
+    status = "okay";
+};

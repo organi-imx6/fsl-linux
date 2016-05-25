@@ -20,6 +20,27 @@
 		  pinctrl-0 = <&pinctrl_ipu1_1>;
 		  status = "disabled";
 	};
+
+   sound {
+       compatible = "fsl,imx6-wisehmi-audio-wm8960",
+                  "fsl,imx-audio-wm8960";
+       model = "imx6-wisehmi-audio-wm8960";
+       cpu-dai = <&ssi1>;
+       audio-codec = <&codec>;
+       mux-int-port = <1>;
+       mux-ext-port = <3>;
+       codec-master;
+   };
+};
+
+&ssi1 {
+    fsl,mode = "i2s-slave";
+};
+
+&audmux {
+    status = "okay";
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_audmux>;
 };
 
 &fec {
@@ -238,4 +259,45 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2_2>;
 	trx-stby-gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c3 {
+    clock-frequency = <400000>;
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_i2c3>;
+
+    codec: wm8960@1a {
+           compatible = "wlf,wm8960";
+           reg = <0x1a>;
+           clocks = <&clks 201>;
+           clock-names = "mclk";
+       };
+};
+
+&iomuxc {
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_hog>;
+
+    imx6qdl-wisehmi {
+    pinctrl_hog: hoggrp {
+                 fsl,pins = <
+                    MX6QDL_PAD_GPIO_19__CCM_CLKO1   0x1b0b0
+                 >;
+             };
+
+    pinctrl_i2c3: i2c3grp {
+        fsl,pins = <
+            MX6QDL_PAD_EIM_D17__I2C3_SCL    0x4001b8b1
+            MX6QDL_PAD_EIM_D18__I2C3_SDA    0x4001b8b1
+        >;
+    };
+    pinctrl_audmux: audmuxgrp {
+                    fsl,pins = <
+                        MX6QDL_PAD_CSI0_DAT7__AUD3_RXD  0x130b0
+                        MX6QDL_PAD_CSI0_DAT4__AUD3_TXC  0x130b0
+                        MX6QDL_PAD_CSI0_DAT5__AUD3_TXD  0x110b0
+                        MX6QDL_PAD_CSI0_DAT6__AUD3_TXFS 0x130b0
+                    >;
+                };
+    };
 };
