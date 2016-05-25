@@ -267,6 +267,8 @@
 					dmas = <&sdma 37 1 0>,
 					       <&sdma 38 1 0>;
 					dma-names = "rx", "tx";
+					fsl,fifo-depth = <15>;
+					fsl,ssi-dma-events = <38 37>;
 					status = "disabled";
 				};
 

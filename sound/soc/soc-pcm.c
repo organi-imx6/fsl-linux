@@ -498,7 +498,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret = 0;
-
+printk("soc_pcm_prepare\n");
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
 	if (rtd->dai_link->ops && rtd->dai_link->ops->prepare) {
@@ -595,21 +595,24 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (cpu_dai->driver->ops->hw_params) {
 		ret = cpu_dai->driver->ops->hw_params(substream, params, cpu_dai);
 		if (ret < 0) {
-			dev_err(cpu_dai->dev, "ASoC: %s hw params failed: %d\n",
+			dev_err(cpu_dai->dev, "ASoC: %s hw params failed[1111]: %d\n",
 				cpu_dai->name, ret);
 			goto interface_err;
 		}
 	}
+printk("AAAAAA\n");
+printk("AAAAAA\n");
 
 	if (platform->driver->ops && platform->driver->ops->hw_params) {
 		ret = platform->driver->ops->hw_params(substream, params);
 		if (ret < 0) {
-			dev_err(platform->dev, "ASoC: %s hw params failed: %d\n",
+			dev_err(platform->dev, "ASoC: %s hw params failed[2222]: %d\n",
 			       platform->name, ret);
 			goto platform_err;
 		}
 	}
 
+printk("BBBBBBB\n");
 	/* store the parameters for each DAIs */
 	cpu_dai->rate = params_rate(params);
 	cpu_dai->channels = params_channels(params);
