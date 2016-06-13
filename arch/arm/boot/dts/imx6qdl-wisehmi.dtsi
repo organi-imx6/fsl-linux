@@ -21,6 +21,13 @@
 		  status = "disabled";
 	};
 
+	video0: v4l2_cap_0 {
+		compatible = "fsl,imx6q-v4l2-capture";
+		ipu_id = <0>;
+		csi_id = <1>;
+		mclk_source = <0>;
+	};
+
    sound {
        compatible = "fsl,imx6-wisehmi-audio-wm8960",
                   "fsl,imx-audio-wm8960";
@@ -38,7 +45,6 @@
 };
 
 &audmux {
-    status = "okay";
     pinctrl-names = "default";
     pinctrl-0 = <&pinctrl_audmux>;
 };
@@ -262,16 +268,30 @@
 };
 
 &i2c3 {
-    clock-frequency = <400000>;
-    pinctrl-names = "default";
-    pinctrl-0 = <&pinctrl_i2c3>;
+    	clock-frequency = <400000>;
+    	pinctrl-names = "default";
+    	pinctrl-0 = <&pinctrl_i2c3>;
 
-    codec: wm8960@1a {
-           compatible = "wlf,wm8960";
-           reg = <0x1a>;
-           clocks = <&clks 201>;
-           clock-names = "mclk";
-       };
+    	codec: wm8960@1a {
+           	compatible = "wlf,wm8960";
+           	reg = <0x1a>;
+           	clocks = <&clks 201>;
+           	clock-names = "mclk";
+	};
+       
+	tw9990: tw9990@44 {
+		compatible = "intersil,tw9990";
+		reg = <0x44>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu1_2>;
+		clocks = <&clks 201>;
+		clock-names = "csi_mclk";
+		pdn-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+ 		rstb-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		csi_id = <1>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+	};
 };
 
 &iomuxc {
