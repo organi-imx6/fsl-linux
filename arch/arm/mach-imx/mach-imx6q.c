@@ -294,6 +294,68 @@ static void __init imx6q_1588_init(void)
 
 }
 
+static int __init wisehmi_display_sw_init(void)
+{
+    int ret_value = 0;
+    struct device_node *np = NULL;
+    int sw_gpio = 0;
+    int sw_gpio_flag = OF_GPIO_ACTIVE_LOW;
+
+    np = of_find_node_by_path("/display-switch");
+    if (!np) {
+        ret_value = -1;
+        goto label_out;
+    }
+
+    ret_value = of_device_is_available(np);
+    if (1 != ret_value) {
+        ret_value = -1;
+        goto label_out;
+    }
+
+    sw_gpio = of_get_named_gpio_flags(np, "display-sw-gpio", 0, &sw_gpio_flag);
+    if (!gpio_is_valid(sw_gpio)) {
+        ret_value = -1;
+        goto label_out;
+    }
+    /*
+    ret_value = gpio_request_one(sw_gpio, GPIOF_DIR_OUT, "display-switch");
+    if (ret_value) {
+        printk("[ERROR] gpio_request_one\n");
+        goto label_out;
+    }*/
+
+    ret_value = gpio_request(sw_gpio, "display-switch");
+    if (ret_value) {
+        ret_value = -1;
+        goto label_out;
+    }
+
+    ret_value = gpio_direction_output(sw_gpio, sw_gpio_flag);
+    if (ret_value) {
+        ret_value = -1;
+        goto label_out;
+    }
+
+    ret_value = gpio_export(sw_gpio, 1);
+    if (ret_value) {
+        ret_value = -1;
+        goto label_out;
+    }
+/*
+    gpio_set_value(sw_gpio, sw_gpio_flag);
+
+    ret_value = gpio_get_value(sw_gpio);
+    printk("***************ret_value: %d\n", ret_value);*/
+
+label_out:
+    if (-1 != ret_value)
+        return 0;
+    else
+        return (-1);
+}
+
+
 static void __init imx6q_csi_mux_init(void)
 {
 	/*
@@ -415,6 +477,7 @@ static void __init imx6q_init_machine(void)
 	imx_anatop_init();
 	imx6_pm_init();
 	imx6q_csi_mux_init();
+	wisehmi_display_sw_init();
 }
 
 #define OCOTP_CFG3			0x440
