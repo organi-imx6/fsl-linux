@@ -158,6 +158,17 @@
 			hsync-len = <60>;
 			vsync-len = <10>;
 		};
+        CLAA123PA01CW { /*cpt 1440*540 panel*/
+            clock-frequency = <61250000>;
+            hactive = <1440>;
+            vactive = <540>;
+            hback-porch = <200>;
+            hfront-porch = <200>;
+            vback-porch = <6>;
+            vfront-porch = <6>;
+            hsync-len = <162>;
+            vsync-len = <7>;
+         };
 	};
 };
 
@@ -197,18 +208,18 @@
 			vsync-len = <8>;
 			pixelclk-active = <0>;
 		};
-                CLAA070LFA1_CW {/* cpt 800x480 */
-                        clock-frequency = <33000000>;
-                        hactive = <800>;
-                        vactive = <480>;
-                        hback-porch = <16>;
-                        hfront-porch = <210>;
-                        vback-porch = <10>;
-                        vfront-porch = <22>;
-                        hsync-len = <30>;
-                        vsync-len = <13>;
-                        pixelclk-active = <0>;
-                };
+        CLAA070LFA1_CW {/* cpt 800x480 */
+            clock-frequency = <33000000>;
+            hactive = <800>;
+            vactive = <480>;
+            hback-porch = <16>;
+            hfront-porch = <210>;
+            vback-porch = <10>;
+            vfront-porch = <22>;
+            hsync-len = <30>;
+            vsync-len = <13>;
+            pixelclk-active = <0>;
+         };
 	};
 };
 
