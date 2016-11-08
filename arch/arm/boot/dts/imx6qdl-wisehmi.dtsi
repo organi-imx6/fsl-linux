@@ -63,11 +63,23 @@
         display-sw-gpio = <&gpio1 20 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
+
+    wisehmi_beeper: pwm-beeper {
+        compatible = "pwm-beeper";
+        pwms = <&pwm4 0 500000>;
+        status = "disabled";
+    };
 };
 
 &pwm3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm3_1>;
+	status = "disabled";
+};
+
+&pwm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm4_1>;
 	status = "disabled";
 };
 

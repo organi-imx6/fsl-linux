@@ -29,3 +29,22 @@
 &video0 {
 	status = "okay";
 };
+
+&iomuxc {
+    pwm4 {
+        pinctrl_pwm4_1: pwm4grp-1 {
+            fsl,pins = <
+                MX6QDL_PAD_SD4_DAT2__PWM4_OUT 0x1b0b1
+            >;
+        };
+    };
+};
+
+&pwm4 {
+    status = "okay";
+};
+
+&wisehmi_beeper {
+    pwms = <&pwm4 0 500000>;
+    status = "okay";
+};
