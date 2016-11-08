@@ -48,3 +48,9 @@
     pwms = <&pwm4 0 500000>;
     status = "okay";
 };
+
+&flexcan1 {
+    trx-en-gpio = <&gpio4 13 GPIO_ACTIVE_HIGH>;  /* test on rabbit board */
+    trx-stby-gpio = <&gpio4 12 GPIO_ACTIVE_LOW>; /* test on rabbit board */
+    status = "okay";
+};
