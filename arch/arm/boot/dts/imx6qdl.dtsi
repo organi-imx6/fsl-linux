@@ -1568,6 +1568,14 @@
 		};
 	};
 
+    pwm4 {
+        pinctrl_pwm4_1: pwm4grp-1 {
+            fsl,pins = <
+                MX6QDL_PAD_SD4_DAT2__PWM4_OUT 0x1b0b1
+            >;
+        };
+    };
+
 	spdif {
 		pinctrl_spdif_1: spdifgrp-1 {
 			fsl,pins = <
