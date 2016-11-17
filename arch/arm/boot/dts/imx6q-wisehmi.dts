@@ -68,11 +68,11 @@
 };
 
 &flexcan1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &flexcan2 {
-	status = "okay";
+	status = "disabled";
 };
 
 &usbh1 {
