@@ -1,7 +1,7 @@
 #include "imx6dl-wisehmi.dts"
 
 &mxcfb1 {
-	mode_str = "CLAA123PA01CW";
+	mode_str = "C123VAN01";
 };
 
 &ldb {
@@ -10,12 +10,4 @@
 
 &lcd {
 	status = "disabled";
-};
-
-&i2c3 {
-    status = "okay";
-};
-
-&video0 {
-	status = "okay";
 };
