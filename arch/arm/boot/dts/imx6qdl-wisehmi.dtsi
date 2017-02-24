@@ -232,6 +232,30 @@
             vsync-len = <13>;
             pixelclk-active = <0>;
          };
+        T_55931GD018HU_T_AIN {/* HUD 480x240 */
+            clock-frequency = <10000000>;
+            hactive = <480>;
+            vactive = <240>;
+            hback-porch = <30>;
+            hfront-porch = <30>;
+            vback-porch = <3>;
+            vfront-porch = <3>;
+            hsync-len = <40>;
+            vsync-len = <4>;
+            pixelclk-active = <0>;
+        };
+        TFT9K2353 {/* HUD 480x240_2 */
+            clock-frequency = <7970000>;
+            hactive = <480>;
+            vactive = <240>;
+            hback-porch = <40>;
+            hfront-porch = <5>;
+            vback-porch = <2>;
+            vfront-porch = <8>;
+            hsync-len = <2>;
+            vsync-len = <2>;
+            pixelclk-active = <0>;
+        };
 	};
 };
 

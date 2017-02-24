@@ -1,0 +1,26 @@
+#include "imx6q-wisehmi.dts"
+
+&mxcfb1 {
+	mode_str ="AUO_C123HAN01_1";
+	min_nbuf = <2>;	
+};
+
+&mxcfb2 {
+	status = "okay";
+};
+
+&ldb {
+	disp_id = <1>;
+	mode = "spl1";
+	status = "okay";
+};
+
+&lcd {
+	ipu_id = <1>;
+	pinctrl-0 = <&pinctrl_ipu2_1>;
+	status = "okay";
+};
+
+&audmux {
+	status = "okay";
+};
