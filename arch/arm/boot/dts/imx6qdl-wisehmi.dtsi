@@ -181,6 +181,17 @@
             hsync-len = <162>;
             vsync-len = <7>;
          };
+        C123VAN01 { /*HannStar 1440*540 panel*/
+            clock-frequency = <55100000>;
+            hactive = <1440>;
+            vactive = <540>;
+            hback-porch = <65>;
+            hfront-porch = <65>;
+            vback-porch = <6>;
+            vfront-porch = <6>;
+            hsync-len = <70>;
+            vsync-len = <7>;
+         };
 	};
 };
 
