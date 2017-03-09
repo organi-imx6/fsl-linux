@@ -1,7 +1,7 @@
 #include "imx6q-wisehmi.dts"
 
 &mxcfb1 {
-	mode_str = "SHD123IPW1A00";
+	mode_str = "AUO_C123HAN01_1";
 };
 
 &ldb {
