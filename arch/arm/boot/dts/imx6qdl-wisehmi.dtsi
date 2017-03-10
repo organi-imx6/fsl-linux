@@ -191,7 +191,29 @@
             vfront-porch = <6>;
             hsync-len = <70>;
             vsync-len = <7>;
+         };  
+         HSD123IPW1_A00 {  /* hannstar 12.3 1920*720 */
+            clock-frequency = <95040000>;
+            hactive = <1920>;
+            vactive = <720>;
+            hback-porch = <38>;
+            hfront-porch = <38>;
+            vback-porch = <35>;
+            vfront-porch = <35>;
+            hsync-len = <4>;
+            vsync-len = <2>;
          };
+         CLAA123FBA1_XN {	/* cpt 12.3 1920*720 */
+            clock-frequency = <104600000>;
+            hactive = <1920>;
+            vactive = <720>;
+            hback-porch = <150>;
+            hfront-porch = <150>;
+            vback-porch = <15>;
+            vfront-porch = <15>;
+            hsync-len = <80>;
+            vsync-len = <8>;
+        };
 	};
 };
 
