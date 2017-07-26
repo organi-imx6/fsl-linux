@@ -181,7 +181,7 @@
             hsync-len = <162>;
             vsync-len = <7>;
          };
-        C123VAN01 { /*AUO 1440*540 panel*/
+        C123VAN01 { /*AUO 1440 * 540 panel*/
             clock-frequency = <55100000>;
             hactive = <1440>;
             vactive = <540>;
